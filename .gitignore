@@ -1,9 +1,31 @@
+# Virtual Environment
 .venv/
+venv/
+ENV/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python Cache & Bytecode
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .pytest_cache/
+
+# Runner Scratch & Executables
 c_runner_*/
+c_judge_*/
+c_custom_test_*/
+c_verify_ref_*/
 solution.exe
 solution.c
+reference.exe
+reference.c
+
+# Database / Persisted Data (optional local test data)
+data/*.json
+!data/.gitkeep
