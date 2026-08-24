@@ -3,7 +3,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 from app.config import (
     COMPILER_FLAGS,
@@ -69,25 +69,115 @@ def get_compiler_health() -> HealthResponse:
     )
 
 
+def compile_source_file(
+    source_file: Path,
+    executable_file: Path,
+    temp_dir: str,
+) -> Tuple[bool, str, int]:
+    """
+    Compiles a C source file into an executable using MSYS64 GCC.
+    Returns: (is_success, compilation_output, returncode)
+    """
+    compile_cmd = [
+        GCC_EXECUTABLE_PATH,
+        str(source_file),
+        "-o",
+        str(executable_file),
+        *COMPILER_FLAGS,
+    ]
+
+    try:
+        compile_proc = subprocess.run(
+            compile_cmd,
+            cwd=temp_dir,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=get_compiler_env(temp_dir),
+            timeout=10.0,
+        )
+        output = (compile_proc.stdout + compile_proc.stderr).strip()
+        success = (compile_proc.returncode == 0) and executable_file.is_file()
+        if not success and not output:
+            output = f"Compilation failed with exit code {compile_proc.returncode}."
+        return success, output, compile_proc.returncode
+    except subprocess.TimeoutExpired:
+        return False, "Compilation timed out after 10 seconds.", -1
+    except Exception as e:
+        return False, f"Failed to invoke compiler: {str(e)}", -1
+
+
+def execute_binary(
+    executable_file: Path,
+    temp_dir: str,
+    stdin_data: str = "",
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+) -> Tuple[Optional[int], str, str, float, bool]:
+    """
+    Executes a compiled binary, piping stdin and capturing stdout/stderr with timeout enforcement.
+    Returns: (exit_code, stdout, stderr, elapsed_time_ms, is_timeout)
+    """
+    start_time = time.perf_counter()
+    proc = None
+
+    try:
+        proc = subprocess.Popen(
+            [str(executable_file)],
+            cwd=temp_dir,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=get_compiler_env(temp_dir),
+        )
+
+        stdout_data, stderr_data = proc.communicate(
+            input=stdin_data or None,
+            timeout=timeout,
+        )
+        end_time = time.perf_counter()
+        elapsed_ms = round((end_time - start_time) * 1000, 2)
+        return proc.returncode, stdout_data, stderr_data, elapsed_ms, False
+
+    except subprocess.TimeoutExpired:
+        end_time = time.perf_counter()
+        elapsed_ms = round((end_time - start_time) * 1000, 2)
+
+        if proc:
+            kill_process_tree(proc.pid)
+            try:
+                proc.kill()
+                proc.communicate(timeout=1.0)
+            except Exception:
+                pass
+
+        return None, "", f"Time limit exceeded ({timeout:.2f}s).", elapsed_ms, True
+
+    except Exception as e:
+        end_time = time.perf_counter()
+        elapsed_ms = round((end_time - start_time) * 1000, 2)
+
+        if proc:
+            kill_process_tree(proc.pid)
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
+        return -1, "", f"Execution error: {str(e)}", elapsed_ms, False
+
+
 def compile_and_run_c(
     code: str,
     stdin_input: str = "",
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
 ) -> ExecuteCodeResponse:
     """
-    Compiles and executes C code in an isolated temporary directory.
-
-    Execution Flow:
-    1. Create unique isolated temporary directory.
-    2. Write code to 'solution.c'.
-    3. Run GCC compiler with configured flags.
-    4. If compilation fails -> Return COMPILATION_ERROR with compiler output.
-    5. If compilation succeeds -> Run 'solution.exe', pipe stdin, capture stdout/stderr.
-    6. If execution times out -> Kill entire process tree and return TIME_LIMIT_EXCEEDED.
-    7. Return structured execution results (status, stdout, stderr, exit code, time).
-    8. Auto-cleanup temporary directory.
+    Compiles and executes C code in an isolated temporary directory for raw execution (/api/run).
     """
-    # Enforce safe bounds on timeout
     effective_timeout = max(0.1, min(timeout_seconds, MAX_TIMEOUT_SECONDS))
 
     with tempfile.TemporaryDirectory(prefix="c_runner_") as temp_dir:
@@ -105,124 +195,46 @@ def compile_and_run_c(
                 exit_code=-1,
             )
 
-        runner_env = get_compiler_env(temp_dir)
+        # 2. Compile
+        success, compilation_output, returncode = compile_source_file(
+            source_file=source_file,
+            executable_file=executable_file,
+            temp_dir=temp_dir,
+        )
 
-        # 2. Compile source code using GCC
-        compile_cmd = [
-            GCC_EXECUTABLE_PATH,
-            str(source_file),
-            "-o",
-            str(executable_file),
-            *COMPILER_FLAGS,
-        ]
-
-        try:
-            compile_proc = subprocess.run(
-                compile_cmd,
-                cwd=temp_dir,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                env=runner_env,
-                timeout=10.0,  # 10s compiler timeout
-            )
-        except subprocess.TimeoutExpired:
+        if not success:
             return ExecuteCodeResponse(
                 status=ExecutionStatus.COMPILATION_ERROR,
-                compilation_output="Compilation timed out after 10 seconds.",
-                exit_code=-1,
-            )
-        except Exception as e:
-            return ExecuteCodeResponse(
-                status=ExecutionStatus.INTERNAL_ERROR,
-                compilation_output=f"Failed to invoke compiler: {str(e)}",
-                exit_code=-1,
-            )
-
-        compilation_output = (compile_proc.stdout + compile_proc.stderr).strip()
-
-        # Check if compilation failed
-        if compile_proc.returncode != 0 or not executable_file.is_file():
-            return ExecuteCodeResponse(
-                status=ExecutionStatus.COMPILATION_ERROR,
-                compilation_output=compilation_output or f"Compilation failed with exit code {compile_proc.returncode}.",
-                exit_code=compile_proc.returncode,
+                compilation_output=compilation_output,
+                exit_code=returncode,
                 execution_time_ms=0.0,
             )
 
-        # 3. Execute the compiled binary
-        start_time = time.perf_counter()
-        proc = None
+        # 3. Execute
+        exit_code, stdout, stderr, elapsed_ms, is_timeout = execute_binary(
+            executable_file=executable_file,
+            temp_dir=temp_dir,
+            stdin_data=stdin_input,
+            timeout=effective_timeout,
+        )
 
-        try:
-            proc = subprocess.Popen(
-                [str(executable_file)],
-                cwd=temp_dir,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                env=runner_env,
-            )
-
-            stdout_data, stderr_data = proc.communicate(
-                input=stdin_input or None,
-                timeout=effective_timeout,
-            )
-            end_time = time.perf_counter()
-            elapsed_ms = round((end_time - start_time) * 1000, 2)
-
-            status = (
-                ExecutionStatus.SUCCESS
-                if proc.returncode == 0
-                else ExecutionStatus.RUNTIME_ERROR
-            )
-
-            return ExecuteCodeResponse(
-                status=status,
-                stdout=stdout_data,
-                stderr=stderr_data,
-                exit_code=proc.returncode,
-                compilation_output=compilation_output,
-                execution_time_ms=elapsed_ms,
-            )
-
-        except subprocess.TimeoutExpired:
-            end_time = time.perf_counter()
-            elapsed_ms = round((end_time - start_time) * 1000, 2)
-
-            if proc:
-                # Terminate the entire process tree on timeout
-                kill_process_tree(proc.pid)
-                try:
-                    proc.kill()
-                    proc.communicate(timeout=1.0)
-                except Exception:
-                    pass
-
+        if is_timeout:
             return ExecuteCodeResponse(
                 status=ExecutionStatus.TIME_LIMIT_EXCEEDED,
                 stdout="",
-                stderr=f"Time limit exceeded ({effective_timeout:.2f}s). Execution killed.",
+                stderr=stderr,
                 exit_code=None,
                 compilation_output=compilation_output,
                 execution_time_ms=elapsed_ms,
             )
 
-        except Exception as e:
-            if proc:
-                kill_process_tree(proc.pid)
-                try:
-                    proc.kill()
-                except Exception:
-                    pass
+        status = ExecutionStatus.SUCCESS if exit_code == 0 else ExecutionStatus.RUNTIME_ERROR
 
-            return ExecuteCodeResponse(
-                status=ExecutionStatus.INTERNAL_ERROR,
-                stderr=f"Execution error: {str(e)}",
-                exit_code=-1,
-                compilation_output=compilation_output,
-            )
+        return ExecuteCodeResponse(
+            status=status,
+            stdout=stdout,
+            stderr=stderr,
+            exit_code=exit_code,
+            compilation_output=compilation_output,
+            execution_time_ms=elapsed_ms,
+        )

@@ -2,6 +2,10 @@ import os
 import shutil
 from pathlib import Path
 from typing import List
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 def find_gcc_path() -> str:
@@ -89,3 +93,14 @@ DEFAULT_TIMEOUT_SECONDS: float = 5.0
 MAX_TIMEOUT_SECONDS: float = 15.0
 MAX_CODE_SIZE_BYTES: int = 64 * 1024  # 64 KB
 MAX_STDIN_SIZE_BYTES: int = 256 * 1024  # 256 KB
+
+# Local LLM / Ollama Configuration
+OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+DEFAULT_LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen2.5-coder:3b")
+LLM_TIMEOUT_SECONDS: float = float(os.getenv("LLM_TIMEOUT_SECONDS", "120"))
+LLM_OPENAI_BASE_URL: str = os.getenv("LLM_OPENAI_BASE_URL", "").rstrip("/")
+
+# Data Persistence Directory
+DATA_DIR: Path = Path("data")
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+PROBLEMS_FILE: Path = DATA_DIR / "problems.json"

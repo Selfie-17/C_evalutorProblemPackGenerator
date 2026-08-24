@@ -1,0 +1,144 @@
+{
+  "sum-two-numbers": {
+    "id": "sum-two-numbers",
+    "title": "Sum of Two Numbers",
+    "description": "Given two space-separated integers a and b from standard input, compute and print their sum to standard output.",
+    "time_limit": 2.0,
+    "input_format": "Two space-separated integers a and b.",
+    "output_format": "Print a single integer: the sum of a and b.",
+    "constraints": [
+      "-10^9 <= a, b <= 10^9"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Math",
+      "Implementation"
+    ],
+    "hints": [],
+    "sample_cases": [
+      {
+        "input": "10 20",
+        "expected_output": "30",
+        "is_hidden": false
+      },
+      {
+        "input": "5 7",
+        "expected_output": "12",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "-10 15",
+        "expected_output": "5",
+        "is_hidden": true
+      },
+      {
+        "input": "0 0",
+        "expected_output": "0",
+        "is_hidden": true
+      },
+      {
+        "input": "1000 -500",
+        "expected_output": "500",
+        "is_hidden": true
+      }
+    ]
+  },
+  "is-palindrome": {
+    "id": "is-palindrome",
+    "title": "Palindrome Number",
+    "description": "Given an integer x from standard input, print 1 if x is a palindrome integer, otherwise print 0. Negative numbers are not palindromes.",
+    "time_limit": 2.0,
+    "input_format": "A single integer x.",
+    "output_format": "Print 1 if x is palindrome, else 0.",
+    "constraints": [
+      "-2^31 <= x <= 2^31 - 1"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Math"
+    ],
+    "hints": [],
+    "sample_cases": [
+      {
+        "input": "121",
+        "expected_output": "1",
+        "is_hidden": false
+      },
+      {
+        "input": "-121",
+        "expected_output": "0",
+        "is_hidden": false
+      },
+      {
+        "input": "10",
+        "expected_output": "0",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "12321",
+        "expected_output": "1",
+        "is_hidden": true
+      },
+      {
+        "input": "0",
+        "expected_output": "1",
+        "is_hidden": true
+      },
+      {
+        "input": "123456",
+        "expected_output": "0",
+        "is_hidden": true
+      }
+    ]
+  },
+  "factorial": {
+    "id": "factorial",
+    "title": "Factorial of a Number",
+    "description": "Given a non-negative integer n (0 <= n <= 15) from standard input, calculate and print n! (n factorial).",
+    "time_limit": 2.0,
+    "input_format": "A single non-negative integer n.",
+    "output_format": "Print n! as an integer.",
+    "constraints": [
+      "0 <= n <= 15"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Math",
+      "Recursion"
+    ],
+    "hints": [],
+    "sample_cases": [
+      {
+        "input": "5",
+        "expected_output": "120",
+        "is_hidden": false
+      },
+      {
+        "input": "0",
+        "expected_output": "1",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "1",
+        "expected_output": "1",
+        "is_hidden": true
+      },
+      {
+        "input": "6",
+        "expected_output": "720",
+        "is_hidden": true
+      },
+      {
+        "input": "10",
+        "expected_output": "3628800",
+        "is_hidden": true
+      }
+    ]
+  }
+}
