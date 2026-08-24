@@ -100,6 +100,12 @@ DEFAULT_LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen2.5-coder:3b")
 LLM_TIMEOUT_SECONDS: float = float(os.getenv("LLM_TIMEOUT_SECONDS", "120"))
 LLM_OPENAI_BASE_URL: str = os.getenv("LLM_OPENAI_BASE_URL", "").rstrip("/")
 
+# Viva Generator Configuration (Dual Provider: Ollama & Gemini)
+VIVA_LLM_PROVIDER: str = os.getenv("VIVA_LLM_PROVIDER", "ollama").lower()
+VIVA_OLLAMA_MODEL: str = os.getenv("VIVA_OLLAMA_MODEL", DEFAULT_LLM_MODEL)
+VIVA_GEMINI_MODEL: str = os.getenv("VIVA_GEMINI_MODEL", "gemini-3.7-flash")
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+
 # Data Persistence Directory
 DATA_DIR: Path = Path("data")
 DATA_DIR.mkdir(parents=True, exist_ok=True)

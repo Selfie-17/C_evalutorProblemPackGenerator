@@ -361,3 +361,129 @@ class LLMStatusResponse(BaseModel):
     configured_model: str
     available_models: List[str] = Field(default_factory=list)
     error: Optional[str] = None
+
+
+# --- Personalized Viva Question Generator Models (/api/generate-viva) ---
+
+class QuestionTypeEnum(str, Enum):
+    MCQ = "mcq"
+    DESCRIPTIVE = "descriptive"
+    TRICKY = "tricky"
+    CODE_MODIFICATION = "code_modification"
+    DEBUGGING = "debugging"
+
+
+class VivaQuestion(BaseModel):
+    id: int = Field(..., description="1-based question sequence identifier")
+    type: str = Field(
+        ...,
+        description="Question type: mcq, descriptive, tricky, code_modification, or debugging",
+    )
+    difficulty: str = Field(
+        default="medium",
+        description="Question difficulty: easy, medium, or hard",
+    )
+    category: str = Field(
+        default="code_specific",
+        description="Aspect analyzed: code_specific, why, edge_case, complexity, debugging, or what_if",
+    )
+    question: str = Field(..., description="The personalized interview or viva question")
+    options: List[str] = Field(
+        default_factory=list,
+        description="List of 4 candidate answers for MCQ questions",
+    )
+    correct_answer: Optional[int] = Field(
+        default=None,
+        description="0-indexed or 1-indexed index of correct option for MCQ",
+    )
+    expected_answer: Optional[str] = Field(
+        default=None,
+        description="Detailed expected answer and rationale for descriptive/tricky/debugging questions",
+    )
+    explanation: Optional[str] = Field(
+        default=None,
+        description="Explanation of the correct answer and underlying concept",
+    )
+    related_code: Optional[str] = Field(
+        default=None,
+        description="Exact snippet from the student's submitted code targeted by this question",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_viva_question(cls, data):
+        if isinstance(data, dict):
+            # Normalize correct_answer if provided as string or 1-indexed
+            ans = data.get("correct_answer")
+            opts = data.get("options") or []
+            if isinstance(ans, str) and opts:
+                # If answer matches one of the options text
+                for idx, opt in enumerate(opts):
+                    if opt.strip().lower() == ans.strip().lower():
+                        data["correct_answer"] = idx
+                        break
+            # If expected_answer is missing but explanation exists
+            if not data.get("expected_answer") and data.get("explanation"):
+                data["expected_answer"] = data["explanation"]
+        return data
+
+
+class GenerateVivaRequest(BaseModel):
+    problem_id: Optional[str] = Field(
+        default=None,
+        description="Optional problem identifier to automatically resolve title, description, and constraints",
+        examples=["sum-two-numbers"],
+    )
+    problem_title: Optional[str] = Field(
+        default=None,
+        description="Problem title (optional if problem_id is supplied)",
+        examples=["Sum of Two Numbers"],
+    )
+    problem_description: Optional[str] = Field(
+        default=None,
+        description="Problem description (optional if problem_id is supplied)",
+        examples=["Given two integers a and b, compute their sum."],
+    )
+    submitted_code: str = Field(
+        ...,
+        min_length=5,
+        max_length=65536,
+        description="The student's submitted C source code",
+        examples=[
+            '#include <stdio.h>\n\nint main() {\n    int a, b;\n    if (scanf("%d %d", &a, &b) == 2) {\n        printf("%d\\n", a + b);\n    }\n    return 0;\n}'
+        ],
+    )
+    judge_result: Optional[dict] = Field(
+        default=None,
+        description="Verdict dictionary from judge (e.g. status: 'accepted', 'wrong_answer', 'time_limit_exceeded', failed_test_case: 2, etc.)",
+        examples=[{"status": "accepted", "total_test_cases": 5, "passed_test_cases": 5}],
+    )
+    number_of_questions: Optional[int] = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Number of personalized viva questions to generate (1 to 20)",
+        examples=[5],
+    )
+    provider: Optional[str] = Field(
+        default=None,
+        description="LLM provider override: 'ollama' (local) or 'gemini' (cloud)",
+        examples=["ollama"],
+    )
+    model: Optional[str] = Field(
+        default=None,
+        description="Specific model override (e.g. 'qwen2.5-coder:3b' or 'gemini-3.7-flash')",
+        examples=["qwen2.5-coder:3b"],
+    )
+
+
+class GenerateVivaResponse(BaseModel):
+    status: str  # "success", "validation_failed", "llm_error"
+    provider_used: str
+    model_used: str
+    total_questions: int = 0
+    questions: List[VivaQuestion] = Field(default_factory=list)
+    code_summary: Optional[str] = None
+    generation_time_ms: float = 0.0
+    error: Optional[str] = None
+

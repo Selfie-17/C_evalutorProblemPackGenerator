@@ -7,6 +7,8 @@ from app.models import (
     ExecuteCodeResponse,
     GenerateProblemRequest,
     GenerateProblemResponse,
+    GenerateVivaRequest,
+    GenerateVivaResponse,
     HealthResponse,
     LLMStatusResponse,
     ProblemDetail,
@@ -21,11 +23,12 @@ from app.problems import get_problem, list_problems
 from app.services.compiler import compile_and_run_c, get_compiler_health
 from app.services.generator import check_llm_status, generate_problem_from_llm
 from app.services.judge import judge_solution, run_custom_testcases
+from app.services.viva import generate_viva_questions
 
 app = FastAPI(
-    title="LeetCode-Style C Code Judge Engine & Problem Generator API",
-    description="A high-performance C compilation, execution, online judging, and Local LLM problem generation backend powered by MSYS64 GCC and Ollama.",
-    version="3.0.0",
+    title="LeetCode-Style C Code Judge, Generator & Viva Engine API",
+    description="A high-performance C compilation, execution, online judging, problem generation, and personalized viva generator backend powered by MSYS64 GCC, Ollama, and Gemini.",
+    version="3.5.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -44,10 +47,11 @@ app.add_middleware(
 def root():
     """Welcome endpoint with API status and documentation link."""
     return {
-        "name": "LeetCode-Style C Code Judge & Generator API",
+        "name": "LeetCode-Style C Code Judge, Generator & Viva API",
         "status": "online",
         "documentation": "/docs",
         "endpoints": {
+            "generate_viva": "POST /api/generate-viva",
             "generate_problem": "POST /api/generate-problem",
             "llm_status": "GET /api/llm/status",
             "problems": "GET /api/problems",
@@ -69,6 +73,28 @@ def health_check():
 async def get_llm_status():
     """Check local Ollama / LLM server connectivity and installed models."""
     return await check_llm_status()
+
+
+# --- Personalized Viva Question Generation Endpoint ---
+
+@app.post(
+    "/api/generate-viva",
+    response_model=GenerateVivaResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Viva Generator"],
+    summary="Generate Personalized Viva / Interview Questions",
+    description="Analyzes submitted C code, problem statement, and judge execution verdict to generate targeted viva questions (MCQ, Descriptive Why, Tricky Edge-cases, Debugging, Code Modification). Supports local Ollama and Google Gemini providers.",
+)
+async def generate_viva(request: GenerateVivaRequest) -> GenerateVivaResponse:
+    """
+    Personalized Viva Generation:
+    1. Inspects student code decisions (variables, loops, conditions, memory).
+    2. Incorporates judge verdict (Accepted, Wrong Answer, TLE, Runtime Error).
+    3. Queries selected provider (Ollama local or Gemini cloud).
+    4. Validates and returns structured viva questions with code snippets.
+    """
+    response = await generate_viva_questions(request)
+    return response
 
 
 # --- Problem Generation Endpoints ---
