@@ -8,6 +8,7 @@ from app.config import (
     GEMINI_API_KEY,
     LLM_TIMEOUT_SECONDS,
     OLLAMA_BASE_URL,
+    OLLAMA_NUM_GPU,
     VIVA_GEMINI_MODEL,
     VIVA_LLM_PROVIDER,
     VIVA_OLLAMA_MODEL,
@@ -89,6 +90,7 @@ async def query_ollama_viva(prompt: str, model_name: str) -> str:
         "format": "json",
         "options": {
             "temperature": 0.3,
+            "num_gpu": OLLAMA_NUM_GPU,
         },
     }
 

@@ -1,9 +1,10 @@
 import os
+import re
 import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from app.config import (
     COMPILER_FLAGS,
@@ -12,7 +13,13 @@ from app.config import (
     MAX_TIMEOUT_SECONDS,
     get_compiler_env,
 )
-from app.models import ExecuteCodeResponse, ExecutionStatus, HealthResponse
+from app.models import (
+    CompilationDiagnostic,
+    CompilationResult,
+    ExecuteCodeResponse,
+    ExecutionStatus,
+    HealthResponse,
+)
 
 
 def kill_process_tree(pid: int) -> None:
@@ -69,14 +76,55 @@ def get_compiler_health() -> HealthResponse:
     )
 
 
-def compile_source_file(
+def parse_gcc_diagnostics(
+    compiler_output: str,
+    source_code: Optional[str] = None,
+) -> List[CompilationDiagnostic]:
+    """
+    Parses raw GCC compiler output into structured diagnostics.
+    Matches lines like:
+      filename:line:column: error: message
+      filename:line:column: warning: message
+      filename:line:column: fatal error: message
+    """
+    diagnostics: List[CompilationDiagnostic] = []
+    lines_of_code = source_code.splitlines() if source_code else []
+
+    pattern = re.compile(
+        r"^(?:.*[\\/])?([^\\/:\r\n]+):(\d+):(?:(\d+):)?\s*(error|fatal error|warning|note):\s*(.+)$",
+        re.MULTILINE | re.IGNORECASE,
+    )
+
+    for match in pattern.finditer(compiler_output):
+        _, line_str, col_str, severity, msg = match.groups()
+        line_num = int(line_str) if line_str else None
+        col_num = int(col_str) if col_str else None
+
+        context = None
+        if line_num is not None and 1 <= line_num <= len(lines_of_code):
+            context = lines_of_code[line_num - 1].strip()
+
+        diagnostics.append(
+            CompilationDiagnostic(
+                line=line_num,
+                column=col_num,
+                message=msg.strip(),
+                severity=severity.lower().replace("fatal ", ""),
+                source_context=context,
+            )
+        )
+    return diagnostics
+
+
+def compile_c_source(
     source_file: Path,
     executable_file: Path,
     temp_dir: str,
-) -> Tuple[bool, str, int]:
+    source_code: Optional[str] = None,
+) -> CompilationResult:
     """
-    Compiles a C source file into an executable using MSYS64 GCC.
-    Returns: (is_success, compilation_output, returncode)
+    Compiles a C source file into an executable binary using MSYS64 GCC.
+    Returns a structured CompilationResult containing raw output and parsed diagnostics.
     """
     compile_cmd = [
         GCC_EXECUTABLE_PATH,
@@ -97,15 +145,57 @@ def compile_source_file(
             env=get_compiler_env(temp_dir),
             timeout=10.0,
         )
-        output = (compile_proc.stdout + compile_proc.stderr).strip()
+        stdout = compile_proc.stdout.strip()
+        stderr = compile_proc.stderr.strip()
+        raw_output = (compile_proc.stdout + compile_proc.stderr).strip()
         success = (compile_proc.returncode == 0) and executable_file.is_file()
-        if not success and not output:
-            output = f"Compilation failed with exit code {compile_proc.returncode}."
-        return success, output, compile_proc.returncode
+
+        if not success and not raw_output:
+            raw_output = f"Compilation failed with exit code {compile_proc.returncode}."
+
+        diagnostics = parse_gcc_diagnostics(raw_output, source_code)
+
+        return CompilationResult(
+            success=success,
+            exit_code=compile_proc.returncode,
+            stdout=stdout,
+            stderr=stderr,
+            compiler_output=raw_output,
+            errors=diagnostics,
+        )
     except subprocess.TimeoutExpired:
-        return False, "Compilation timed out after 10 seconds.", -1
+        msg = "Compilation timed out after 10 seconds."
+        return CompilationResult(
+            success=False,
+            exit_code=-1,
+            stdout="",
+            stderr=msg,
+            compiler_output=msg,
+            errors=[CompilationDiagnostic(message=msg, severity="error")],
+        )
     except Exception as e:
-        return False, f"Failed to invoke compiler: {str(e)}", -1
+        msg = f"Failed to invoke compiler: {str(e)}"
+        return CompilationResult(
+            success=False,
+            exit_code=-1,
+            stdout="",
+            stderr=msg,
+            compiler_output=msg,
+            errors=[CompilationDiagnostic(message=msg, severity="error")],
+        )
+
+
+def compile_source_file(
+    source_file: Path,
+    executable_file: Path,
+    temp_dir: str,
+) -> Tuple[bool, str, int]:
+    """
+    Compiles a C source file into an executable using MSYS64 GCC.
+    Returns: (is_success, compilation_output, returncode)
+    """
+    result = compile_c_source(source_file, executable_file, temp_dir)
+    return result.success, result.compiler_output, result.exit_code
 
 
 def execute_binary(
@@ -196,17 +286,19 @@ def compile_and_run_c(
             )
 
         # 2. Compile
-        success, compilation_output, returncode = compile_source_file(
+        comp_res = compile_c_source(
             source_file=source_file,
             executable_file=executable_file,
             temp_dir=temp_dir,
+            source_code=code,
         )
 
-        if not success:
+        if not comp_res.success:
             return ExecuteCodeResponse(
                 status=ExecutionStatus.COMPILATION_ERROR,
-                compilation_output=compilation_output,
-                exit_code=returncode,
+                compilation_output=comp_res.compiler_output,
+                diagnostics=comp_res.errors,
+                exit_code=comp_res.exit_code,
                 execution_time_ms=0.0,
             )
 
@@ -224,7 +316,8 @@ def compile_and_run_c(
                 stdout="",
                 stderr=stderr,
                 exit_code=None,
-                compilation_output=compilation_output,
+                compilation_output=comp_res.compiler_output,
+                diagnostics=comp_res.errors,
                 execution_time_ms=elapsed_ms,
             )
 
@@ -235,6 +328,7 @@ def compile_and_run_c(
             stdout=stdout,
             stderr=stderr,
             exit_code=exit_code,
-            compilation_output=compilation_output,
+            compilation_output=comp_res.compiler_output,
+            diagnostics=comp_res.errors,
             execution_time_ms=elapsed_ms,
         )

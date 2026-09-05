@@ -140,5 +140,1042 @@
         "is_hidden": true
       }
     ]
+  },
+  "find-largest-of-two-numbers": {
+    "id": "find-largest-of-two-numbers",
+    "title": "Find the Largest of Two Numbers",
+    "description": "Write a C program that reads two integers, A and B, from standard input and prints the larger of the two numbers to standard output. If both numbers are equal, print either one.",
+    "time_limit": 2.0,
+    "input_format": "The input consists of a single line containing two space-separated integers, A and B.",
+    "output_format": "Print a single integer, which is the largest of A and B.",
+    "constraints": [
+      "-10^9 <= A, B <= 10^9"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Basic Math",
+      "Conditional Logic",
+      "Input/Output"
+    ],
+    "hints": [
+      "Use `scanf` to read the two integers.",
+      "Use an `if-else` statement to compare the two numbers and determine which one is larger.",
+      "Alternatively, you can use the ternary operator `(condition ? value_if_true : value_if_false)` to find the maximum.",
+      "Remember to print a newline character after the result."
+    ],
+    "sample_cases": [
+      {
+        "input": "5 10",
+        "expected_output": "10",
+        "is_hidden": false
+      },
+      {
+        "input": "7 3",
+        "expected_output": "7",
+        "is_hidden": false
+      },
+      {
+        "input": "8 8",
+        "expected_output": "8",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "-5 -10",
+        "expected_output": "-5",
+        "is_hidden": true
+      },
+      {
+        "input": "-10 5",
+        "expected_output": "5",
+        "is_hidden": true
+      },
+      {
+        "input": "1000000000 999999999",
+        "expected_output": "1000000000",
+        "is_hidden": true
+      },
+      {
+        "input": "-999999999 -1000000000",
+        "expected_output": "-999999999",
+        "is_hidden": true
+      },
+      {
+        "input": "0 7",
+        "expected_output": "7",
+        "is_hidden": true
+      }
+    ]
+  },
+  "nested-loops-example": {
+    "id": "nested-loops-example",
+    "title": "Nested Loops Example",
+    "description": "Given an integer N, print a square matrix of size N x N where each element is the product of its row and column indices.",
+    "time_limit": 2.0,
+    "input_format": "First line contains an integer N (1 <= N <= 1000).",
+    "output_format": "Print a square matrix of size N x N, where each element is the product of its row and column indices. Each row should be printed on a new line, and elements within a row should be separated by spaces.",
+    "constraints": [
+      "1 <= N <= 1000"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Looping"
+    ],
+    "hints": [
+      "Use nested loops to iterate over the rows and columns of the matrix."
+    ],
+    "sample_cases": [
+      {
+        "input": "3\n",
+        "expected_output": "0 0 0\n0 1 2\n0 2 4\n",
+        "is_hidden": false
+      },
+      {
+        "input": "4\n",
+        "expected_output": "0 0 0 0\n0 1 2 3\n0 2 4 6\n0 3 6 9\n",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "1\n",
+        "expected_output": "0\n",
+        "is_hidden": true
+      },
+      {
+        "input": "0\n",
+        "expected_output": "",
+        "is_hidden": true
+      },
+      {
+        "input": "-1\n",
+        "expected_output": "",
+        "is_hidden": true
+      },
+      {
+        "input": "10\n",
+        "expected_output": "0 0 0 0 0 0 0 0 0 0\n0 1 2 3 4 5 6 7 8 9\n0 2 4 6 8 10 12 14 16 18\n0 3 6 9 12 15 18 21 24 27\n0 4 8 12 16 20 24 28 32 36\n0 5 10 15 20 25 30 35 40 45\n0 6 12 18 24 30 36 42 48 54\n0 7 14 21 28 35 42 49 56 63\n0 8 16 24 32 40 48 56 64 72\n0 9 18 27 36 45 54 63 72 81\n",
+        "is_hidden": true
+      }
+    ]
+  },
+  "iterative-constructs-multiplication-grid": {
+    "id": "iterative-constructs-multiplication-grid",
+    "title": "Iterative Constructs - Multiplication Grid",
+    "description": "In computer programming, nested loops are essential for iterating over multi-dimensional structures such as grids, matrices, and tables.\n\nWrite a program that takes two positive integers, $R$ and $C$, and uses nested loops (an outer loop and an inner loop) to generate and print an $R \\times C$ multiplication grid.\n\nIn the grid, the value at row $i$ and column $j$ (where $1 \\le i \\le R$ and $1 \\le j \\le C$) must be equal to the product $i \\times j$. Each row should contain $C$ space-separated integers.",
+    "time_limit": 2.0,
+    "input_format": "The input consists of a single line containing two space-separated integers, $R$ and $C$, representing the number of rows and columns respectively.",
+    "output_format": "Print $R$ lines, each containing $C$ space-separated integers representing the multiplication table. Do not leave a trailing space at the end of any line.",
+    "constraints": [
+      "1 <= R <= 100",
+      "1 <= C <= 100"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Nested Loops",
+      "Basic Math",
+      "Lab Exercise"
+    ],
+    "hints": [
+      "Use an outer loop with a counter variable `i` running from 1 to `R`.",
+      "Use an inner loop with a counter variable `j` running from 1 to `C`.",
+      "Inside the inner loop, print `i * j`. Print a space between columns and a newline after each row."
+    ],
+    "sample_cases": [
+      {
+        "input": "3 4",
+        "expected_output": "1 2 3 4\n2 4 6 8\n3 6 9 12",
+        "is_hidden": false
+      },
+      {
+        "input": "1 5",
+        "expected_output": "1 2 3 4 5",
+        "is_hidden": false
+      },
+      {
+        "input": "2 2",
+        "expected_output": "1 2\n2 4",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "1 1",
+        "expected_output": "1",
+        "is_hidden": true
+      },
+      {
+        "input": "5 1",
+        "expected_output": "1\n2\n3\n4\n5",
+        "is_hidden": true
+      },
+      {
+        "input": "5 5",
+        "expected_output": "1 2 3 4 5\n2 4 6 8 10\n3 6 9 12 15\n4 8 12 16 20\n5 10 15 20 25",
+        "is_hidden": true
+      },
+      {
+        "input": "6 3",
+        "expected_output": "1 2 3\n2 4 6\n3 6 9\n4 8 12\n5 10 15\n6 12 18",
+        "is_hidden": true
+      }
+    ]
+  },
+  "print-pascals-triangle": {
+    "id": "print-pascals-triangle",
+    "title": "Print Pascal's Triangle",
+    "description": "Given an integer $n$, write a program to generate and print the first $n$ rows of Pascal's Triangle.\n\nIn Pascal's Triangle:\n- The first and last numbers in each row are always $1$.\n- Every other number is calculated as the sum of the two numbers directly above it from the previous row.",
+    "time_limit": 2.0,
+    "input_format": "The input consists of a single integer $n$ representing the number of rows of Pascal's Triangle to print.",
+    "output_format": "Print the first $n$ rows of Pascal's Triangle. Each row must be printed on a new line, with integers separated by a single space. Do not print trailing spaces at the end of each line.",
+    "constraints": [
+      "1 <= n <= 30"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Math",
+      "Array",
+      "Lab Exercise"
+    ],
+    "hints": [
+      "Notice that row $i$ has $i + 1$ elements (0-indexed).",
+      "You can maintain a 1D array and update it from back to front for each row to compute the values in-place.",
+      "Alternatively, use a 2D array where triangle[i][j] = triangle[i-1][j-1] + triangle[i-1][j]."
+    ],
+    "sample_cases": [
+      {
+        "input": "5",
+        "expected_output": "1\n1 1\n1 2 1\n1 3 3 1\n1 4 6 4 1",
+        "is_hidden": false
+      },
+      {
+        "input": "1",
+        "expected_output": "1",
+        "is_hidden": false
+      },
+      {
+        "input": "4",
+        "expected_output": "1\n1 1\n1 2 1\n1 3 3 1",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "2",
+        "expected_output": "1\n1 1",
+        "is_hidden": true
+      },
+      {
+        "input": "3",
+        "expected_output": "1\n1 1\n1 2 1",
+        "is_hidden": true
+      },
+      {
+        "input": "6",
+        "expected_output": "1\n1 1\n1 2 1\n1 3 3 1\n1 4 6 4 1\n1 5 10 10 5 1",
+        "is_hidden": true
+      },
+      {
+        "input": "7",
+        "expected_output": "1\n1 1\n1 2 1\n1 3 3 1\n1 4 6 4 1\n1 5 10 10 5 1\n1 6 15 20 15 6 1",
+        "is_hidden": true
+      }
+    ]
+  },
+  "first-n-primes-and-primes-up-to-n": {
+    "id": "first-n-primes-and-primes-up-to-n",
+    "title": "First N Primes and Primes Up to N",
+    "description": "Given a positive integer $n$, write a program to:\n1. Print the first $n$ prime numbers on the first line.\n2. Print all prime numbers that are less than or equal to $n$ on the second line.\n\nA prime number is a natural number greater than 1 that has no positive divisors other than 1 and itself.",
+    "time_limit": 2.0,
+    "input_format": "The input consists of a single integer $n$ on standard input.",
+    "output_format": "Output two lines:\n- The first line contains the first $n$ prime numbers, separated by a single space.\n- The second line contains all prime numbers less than or equal to $n$, separated by a single space. If there are no prime numbers less than or equal to $n$, output an empty line.",
+    "constraints": [
+      "1 <= n <= 1000"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Math",
+      "Number Theory",
+      "Lab Exercise"
+    ],
+    "hints": [
+      "Write a helper function `is_prime(int x)` that returns true if x is prime and false otherwise.",
+      "For the first line, use a while loop with a counter to find and print primes until the count reaches n.",
+      "For the second line, use a for loop from 2 to n and print each integer that is prime."
+    ],
+    "sample_cases": [
+      {
+        "input": "5\n",
+        "expected_output": "2 3 5 7 11\n2 3 5\n",
+        "is_hidden": false
+      },
+      {
+        "input": "1\n",
+        "expected_output": "2\n\n",
+        "is_hidden": false
+      },
+      {
+        "input": "10\n",
+        "expected_output": "2 3 5 7 11 13 17 19 23 29\n2 3 5 7\n",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "2\n",
+        "expected_output": "2 3\n2\n",
+        "is_hidden": true
+      },
+      {
+        "input": "3\n",
+        "expected_output": "2 3 5\n2 3\n",
+        "is_hidden": true
+      },
+      {
+        "input": "15\n",
+        "expected_output": "2 3 5 7 11 13 17 19 23 29 31 37 41 43 47\n2 3 5 7 11 13\n",
+        "is_hidden": true
+      },
+      {
+        "input": "20\n",
+        "expected_output": "2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71\n2 3 5 7 11 13 17 19\n",
+        "is_hidden": true
+      }
+    ]
+  },
+  "prime-triangular-sequence": {
+    "id": "prime-triangular-sequence",
+    "title": "Prime Triangular Sequence",
+    "description": "Given a positive integer `n`, write a program to generate and print the prime pattern sequence corresponding to `n`.\n\nThe pattern consists of printing the first $T_n = \\frac{n(n + 1)}{2}$ prime numbers in ascending order, separated by a single space.\n\nFor example, if $n = 4$, the total number of primes to print is $\\frac{4 \\times 5}{2} = 10$, and the output is `2 3 5 7 11 13 17 19 23 29`.",
+    "time_limit": 2.0,
+    "input_format": "A single line containing an integer $n$.",
+    "output_format": "Print the first $\\frac{n(n + 1)}{2}$ prime numbers separated by a single space.",
+    "constraints": [
+      "1 <= n <= 50"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Math",
+      "Number Theory",
+      "Lab Exercise"
+    ],
+    "hints": [
+      "Determine the total count of primes required using the triangular number formula: k = n * (n + 1) / 2.",
+      "Implement a helper function to test if a number is prime by checking divisibility up to sqrt(num).",
+      "Keep a counter for the number of primes found and iterate through integers starting from 2 until the required count is reached."
+    ],
+    "sample_cases": [
+      {
+        "input": "4\n",
+        "expected_output": "2 3 5 7 11 13 17 19 23 29\n",
+        "is_hidden": false
+      },
+      {
+        "input": "1\n",
+        "expected_output": "2\n",
+        "is_hidden": false
+      },
+      {
+        "input": "2\n",
+        "expected_output": "2 3 5\n",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "3\n",
+        "expected_output": "2 3 5 7 11 13\n",
+        "is_hidden": true
+      },
+      {
+        "input": "5\n",
+        "expected_output": "2 3 5 7 11 13 17 19 23 29 31 37 41 43 47\n",
+        "is_hidden": true
+      },
+      {
+        "input": "6\n",
+        "expected_output": "2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73\n",
+        "is_hidden": true
+      },
+      {
+        "input": "7\n",
+        "expected_output": "2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 89 97 101 103 107\n",
+        "is_hidden": true
+      }
+    ]
+  },
+  "nested-loops-ii-iterative-constructs": {
+    "id": "nested-loops-ii-iterative-constructs",
+    "title": "Nested Loops II: Iterative Constructs",
+    "description": "Given a 2D array of integers, write a program to calculate the sum of all elements in the array.",
+    "time_limit": 2.0,
+    "input_format": "First line contains two integers N and M, representing the number of rows and columns in the 2D array, respectively. The next N lines contain M space-separated integers representing the elements of the 2D array.",
+    "output_format": "Print the sum of all elements in the 2D array.",
+    "constraints": [
+      "1 <= N <= 1000",
+      "1 <= M <= 1000",
+      "-10^6 <= A[i][j] <= 10^6"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Array",
+      "Math"
+    ],
+    "hints": [
+      "Use nested loops to iterate over each element in the 2D array."
+    ],
+    "sample_cases": [
+      {
+        "input": "3 3\n1 2 3\n4 5 6\n7 8 9",
+        "expected_output": "45",
+        "is_hidden": false
+      },
+      {
+        "input": "1 1\n10",
+        "expected_output": "10",
+        "is_hidden": false
+      },
+      {
+        "input": "0 0",
+        "expected_output": "0",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "1 1\n-1000000",
+        "expected_output": "-1000000",
+        "is_hidden": true
+      },
+      {
+        "input": "1 1\n1000000",
+        "expected_output": "1000000",
+        "is_hidden": true
+      },
+      {
+        "input": "2 2\n-1000000 -1000000\n1000000 1000000",
+        "expected_output": "0",
+        "is_hidden": true
+      },
+      {
+        "input": "1 1\n0",
+        "expected_output": "0",
+        "is_hidden": true
+      }
+    ]
+  },
+  "swap-two-numbers-without-third-variable": {
+    "id": "swap-two-numbers-without-third-variable",
+    "title": "Swap Two Numbers Without Third Variable",
+    "description": "Write a C program to swap the values of two integers without using a third or temporary variable.\n\nGiven two integers $a$ and $b$, swap their values and print the updated values of $a$ and $b$ separated by a single space.",
+    "time_limit": 2.0,
+    "input_format": "A single line containing two space-separated integers, $a$ and $b$.",
+    "output_format": "Print the swapped values of $a$ and $b$ separated by a single space.",
+    "constraints": [
+      "-10^9 <= a, b <= 10^9"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Math",
+      "Bit Manipulation",
+      "Basic Programming"
+    ],
+    "hints": [
+      "You can use arithmetic operators (addition and subtraction) or bitwise XOR to swap values in-place.",
+      "Using addition/subtraction: a = a + b; b = a - b; a = a - b;",
+      "Using bitwise XOR: a = a ^ b; b = a ^ b; a = a ^ b;"
+    ],
+    "sample_cases": [
+      {
+        "input": "10 20",
+        "expected_output": "20 10",
+        "is_hidden": false
+      },
+      {
+        "input": "-5 15",
+        "expected_output": "15 -5",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "0 0",
+        "expected_output": "0 0",
+        "is_hidden": true
+      },
+      {
+        "input": "0 42",
+        "expected_output": "42 0",
+        "is_hidden": true
+      },
+      {
+        "input": "-100 -200",
+        "expected_output": "-200 -100",
+        "is_hidden": true
+      },
+      {
+        "input": "1000000000 -1000000000",
+        "expected_output": "-1000000000 1000000000",
+        "is_hidden": true
+      },
+      {
+        "input": "7 7",
+        "expected_output": "7 7",
+        "is_hidden": true
+      }
+    ]
+  },
+  "grade-point-to-letter-grade-converter": {
+    "id": "grade-point-to-letter-grade-converter",
+    "title": "Grade Point to Letter Grade Converter",
+    "description": "Write a C program to convert an integer grade point into its corresponding letter grade using a `switch` statement.\n\nThe grading scale is defined as follows:\n- `10`: \"A+\"\n- `9`: \"A\"\n- `8`: \"B\"\n- `7`: \"C\"\n- `6`: \"D\"\n- `5`: \"E\"\n- `0` to `4`: \"F\"\n- Any other value: \"Invalid\"",
+    "time_limit": 2.0,
+    "input_format": "A single integer representing the grade point.",
+    "output_format": "Print the corresponding letter grade. If the integer does not fall in the range [0, 10], print \"Invalid\".",
+    "constraints": [
+      "-1000 <= grade_point <= 1000"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Conditional Statements",
+      "Lab Exercise"
+    ],
+    "hints": [
+      "Use a switch-case construct to evaluate the integer input.",
+      "Multiple case labels (like 0, 1, 2, 3, 4) can fall through to the same code block for grade 'F'.",
+      "Use the `default` case to handle invalid grade points outside [0, 10]."
+    ],
+    "sample_cases": [
+      {
+        "input": "9\n",
+        "expected_output": "A\n",
+        "is_hidden": false
+      },
+      {
+        "input": "10\n",
+        "expected_output": "A+\n",
+        "is_hidden": false
+      },
+      {
+        "input": "3\n",
+        "expected_output": "F\n",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "0\n",
+        "expected_output": "F\n",
+        "is_hidden": true
+      },
+      {
+        "input": "5\n",
+        "expected_output": "E\n",
+        "is_hidden": true
+      },
+      {
+        "input": "7\n",
+        "expected_output": "C\n",
+        "is_hidden": true
+      },
+      {
+        "input": "-1\n",
+        "expected_output": "Invalid\n",
+        "is_hidden": true
+      },
+      {
+        "input": "11\n",
+        "expected_output": "Invalid\n",
+        "is_hidden": true
+      }
+    ]
+  },
+  "check-even-or-odd": {
+    "id": "check-even-or-odd",
+    "title": "Check Even or Odd",
+    "description": "Write a C program to determine if a given integer is even or odd. The program should read an integer from standard input and output 'Even' if the number is even, and 'Odd' if the number is odd.",
+    "time_limit": 2.0,
+    "input_format": "A single line containing an integer.",
+    "output_format": "A single line containing 'Even' or 'Odd'.",
+    "constraints": [
+      "The input integer will be within the range of -10^9 to 10^9."
+    ],
+    "difficulty": "Hard",
+    "topics": [
+      "Lab Exercise"
+    ],
+    "hints": [
+      "Use the modulus operator (%) to check if the number is divisible by 2."
+    ],
+    "sample_cases": [
+      {
+        "input": "2",
+        "expected_output": "Even",
+        "is_hidden": false
+      },
+      {
+        "input": "-5",
+        "expected_output": "Odd",
+        "is_hidden": false
+      },
+      {
+        "input": "0",
+        "expected_output": "Even",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "-1",
+        "expected_output": "Odd",
+        "is_hidden": true
+      },
+      {
+        "input": "1000000000",
+        "expected_output": "Even",
+        "is_hidden": true
+      },
+      {
+        "input": "-1000000000",
+        "expected_output": "Even",
+        "is_hidden": true
+      },
+      {
+        "input": "1",
+        "expected_output": "Odd",
+        "is_hidden": true
+      }
+    ]
+  },
+  "determine-number-sign": {
+    "id": "determine-number-sign",
+    "title": "Determine Number Sign",
+    "description": "Write a C program that reads an integer from the standard input and determines whether the number is positive, negative, or zero. The program should output 'Positive' if the number is greater than zero, 'Negative' if the number is less than zero, and 'Zero' if the number is exactly zero.",
+    "time_limit": 2.0,
+    "input_format": "A single line containing an integer N.",
+    "output_format": "A single line containing 'Positive', 'Negative', or 'Zero'.",
+    "constraints": [
+      "The input integer N is within the range of -10^6 to 10^6."
+    ],
+    "difficulty": "Hard",
+    "topics": [
+      "Math"
+    ],
+    "hints": [
+      "Use the 'if-else' statement to check the sign of the number."
+    ],
+    "sample_cases": [
+      {
+        "input": "5",
+        "expected_output": "Positive",
+        "is_hidden": false
+      },
+      {
+        "input": "-3",
+        "expected_output": "Negative",
+        "is_hidden": false
+      },
+      {
+        "input": "0",
+        "expected_output": "Zero",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "-1000000",
+        "expected_output": "Negative",
+        "is_hidden": true
+      },
+      {
+        "input": "1000000",
+        "expected_output": "Positive",
+        "is_hidden": true
+      },
+      {
+        "input": "-1",
+        "expected_output": "Negative",
+        "is_hidden": true
+      },
+      {
+        "input": "1",
+        "expected_output": "Positive",
+        "is_hidden": true
+      },
+      {
+        "input": "0",
+        "expected_output": "Zero",
+        "is_hidden": true
+      }
+    ]
+  },
+  "character-classification": {
+    "id": "character-classification",
+    "title": "Character Classification",
+    "description": "Write a C program that reads a character from standard input and determines whether it is an uppercase letter, lowercase letter, digit, or special character. The program should handle all possible ASCII characters.",
+    "time_limit": 2.0,
+    "input_format": "A single character on a line.",
+    "output_format": "A string indicating the type of the character: 'Uppercase', 'Lowercase', 'Digit', or 'Special'.",
+    "constraints": [
+      "The input character is a single ASCII character."
+    ],
+    "difficulty": "Hard",
+    "topics": [
+      "String",
+      "Character"
+    ],
+    "hints": [
+      "Use ASCII values to determine character types."
+    ],
+    "sample_cases": [
+      {
+        "input": "A",
+        "expected_output": "Uppercase",
+        "is_hidden": false
+      },
+      {
+        "input": "a",
+        "expected_output": "Lowercase",
+        "is_hidden": false
+      },
+      {
+        "input": "1",
+        "expected_output": "Digit",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": " ",
+        "expected_output": "Special",
+        "is_hidden": true
+      },
+      {
+        "input": "\n",
+        "expected_output": "Special",
+        "is_hidden": true
+      },
+      {
+        "input": "@",
+        "expected_output": "Special",
+        "is_hidden": true
+      },
+      {
+        "input": "0",
+        "expected_output": "Digit",
+        "is_hidden": true
+      },
+      {
+        "input": "Z",
+        "expected_output": "Uppercase",
+        "is_hidden": true
+      }
+    ]
+  },
+  "swap-two-numbers-without-third-variable-1": {
+    "id": "swap-two-numbers-without-third-variable-1",
+    "title": "Swap Two Numbers Without a Third Variable",
+    "description": "Write a C program that swaps two numbers without using a third variable. The program should read two integers from standard input and output the swapped values.",
+    "time_limit": 2.0,
+    "input_format": "The program should read two integers from standard input. The first integer is followed by a space, and then the second integer.",
+    "output_format": "The program should output the swapped values of the two integers, separated by a space.",
+    "constraints": [
+      "1 <= N <= 1000",
+      "-10^6 <= A[i] <= 10^6"
+    ],
+    "difficulty": "Hard",
+    "topics": [
+      "Lab Exercise",
+      "C Programming"
+    ],
+    "hints": [
+      "Consider using arithmetic operations to swap the values without a temporary variable."
+    ],
+    "sample_cases": [
+      {
+        "input": "10 20",
+        "expected_output": "20 10",
+        "is_hidden": false
+      },
+      {
+        "input": "-5 3",
+        "expected_output": "3 -5",
+        "is_hidden": false
+      },
+      {
+        "input": "0 0",
+        "expected_output": "0 0",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "1000 0",
+        "expected_output": "0 1000",
+        "is_hidden": true
+      },
+      {
+        "input": "-1000 0",
+        "expected_output": "0 -1000",
+        "is_hidden": true
+      },
+      {
+        "input": "0 -1000",
+        "expected_output": "-1000 0",
+        "is_hidden": true
+      },
+      {
+        "input": "-1000 -1000",
+        "expected_output": "-1000 -1000",
+        "is_hidden": true
+      }
+    ]
+  },
+  "find-largest-of-three-numbers-using-ternary-operator": {
+    "id": "find-largest-of-three-numbers-using-ternary-operator",
+    "title": "Find the Largest of Three Numbers Using Ternary Operator",
+    "description": "Write a C program that takes three integers as input and outputs the largest of the three using the ternary operator. The program should handle all possible integer values within the range of -10^6 to 10^6.",
+    "time_limit": 2.0,
+    "input_format": "The program should read three integers from standard input, separated by spaces.",
+    "output_format": "The program should print the largest of the three numbers to standard output.",
+    "constraints": [
+      "1 <= N <= 1000",
+      "-10^6 <= A[i] <= 10^6"
+    ],
+    "difficulty": "Hard",
+    "topics": [
+      "Ternary Operator",
+      "Conditional Expressions"
+    ],
+    "hints": [
+      "Use the ternary operator to compare the numbers and determine the largest one."
+    ],
+    "sample_cases": [
+      {
+        "input": "5 10 3",
+        "expected_output": "10",
+        "is_hidden": false
+      },
+      {
+        "input": "-1 -2 -3",
+        "expected_output": "-1",
+        "is_hidden": false
+      },
+      {
+        "input": "0 0 0",
+        "expected_output": "0",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "1000 1000 1000",
+        "expected_output": "1000",
+        "is_hidden": true
+      },
+      {
+        "input": "-1000 -1000 -1000",
+        "expected_output": "-1000",
+        "is_hidden": true
+      },
+      {
+        "input": "1 -1 0",
+        "expected_output": "1",
+        "is_hidden": true
+      },
+      {
+        "input": "-1 1 0",
+        "expected_output": "1",
+        "is_hidden": true
+      },
+      {
+        "input": "0 0 0",
+        "expected_output": "0",
+        "is_hidden": true
+      }
+    ]
+  },
+  "check-even-or-odd-1": {
+    "id": "check-even-or-odd-1",
+    "title": "Check Even or Odd",
+    "description": "Write a C program that checks whether a given integer is even or odd. The program should read an integer from standard input and print 'Even' if the number is even, and 'Odd' if the number is odd.",
+    "time_limit": 2.0,
+    "input_format": "The program should read a single integer from standard input.",
+    "output_format": "The program should print 'Even' if the number is even, and 'Odd' if the number is odd.",
+    "constraints": [
+      "The input integer will be within the range of -10^6 to 10^6."
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Lab Exercise"
+    ],
+    "hints": [
+      "Use the modulus operator (%) to determine if a number is even or odd."
+    ],
+    "sample_cases": [
+      {
+        "input": "4\n",
+        "expected_output": "Even\n",
+        "is_hidden": false
+      },
+      {
+        "input": "7\n",
+        "expected_output": "Odd\n",
+        "is_hidden": false
+      },
+      {
+        "input": "0\n",
+        "expected_output": "Even\n",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "-1\n",
+        "expected_output": "Odd\n",
+        "is_hidden": true
+      },
+      {
+        "input": "1000000\n",
+        "expected_output": "Even\n",
+        "is_hidden": true
+      },
+      {
+        "input": "-1000000\n",
+        "expected_output": "Even\n",
+        "is_hidden": true
+      },
+      {
+        "input": "1\n",
+        "expected_output": "Odd\n",
+        "is_hidden": true
+      },
+      {
+        "input": "0\n",
+        "expected_output": "Even\n",
+        "is_hidden": true
+      }
+    ]
+  },
+  "determine-number-positive-negative-zero": {
+    "id": "determine-number-positive-negative-zero",
+    "title": "Determine if a Number is Positive, Negative, or Zero",
+    "description": "Write a C program to determine whether a given number is positive, negative, or zero.",
+    "time_limit": 2.0,
+    "input_format": "The first line of input contains an integer N, followed by N space-separated integers.",
+    "output_format": "For each integer, print 'Positive' if the number is greater than 0, 'Negative' if the number is less than 0, and 'Zero' if the number is equal to 0.",
+    "constraints": [
+      "1 <= N <= 1000",
+      "-10^6 <= A[i] <= 10^6"
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Lab Exercise"
+    ],
+    "hints": [
+      "Use conditional statements to check if the number is positive, negative, or zero."
+    ],
+    "sample_cases": [
+      {
+        "input": "2\n1 -1",
+        "expected_output": "Positive\nNegative",
+        "is_hidden": false
+      },
+      {
+        "input": "3\n0 0 0",
+        "expected_output": "Zero\nZero\nZero",
+        "is_hidden": false
+      },
+      {
+        "input": "1\n-5",
+        "expected_output": "Negative",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "1\n0",
+        "expected_output": "Zero",
+        "is_hidden": true
+      },
+      {
+        "input": "1\n-1000000",
+        "expected_output": "Negative",
+        "is_hidden": true
+      },
+      {
+        "input": "1\n1000000",
+        "expected_output": "Positive",
+        "is_hidden": true
+      },
+      {
+        "input": "1\n-1",
+        "expected_output": "Negative",
+        "is_hidden": true
+      }
+    ]
+  },
+  "determine-number-sign-1": {
+    "id": "determine-number-sign-1",
+    "title": "Determine Number Sign",
+    "description": "Write a C program that reads an integer from standard input and determines whether the number is positive, negative, or zero. The program should output 'Positive', 'Negative', or 'Zero' accordingly.",
+    "time_limit": 2.0,
+    "input_format": "A single line containing an integer.",
+    "output_format": "A single line containing 'Positive', 'Negative', or 'Zero'.",
+    "constraints": [
+      "The input integer will be within the range of -10^6 to 10^6."
+    ],
+    "difficulty": "Easy",
+    "topics": [
+      "Lab Exercise"
+    ],
+    "hints": [
+      "Use the if-else statement to check the sign of the number."
+    ],
+    "sample_cases": [
+      {
+        "input": "10",
+        "expected_output": "Positive",
+        "is_hidden": false
+      },
+      {
+        "input": "-10",
+        "expected_output": "Negative",
+        "is_hidden": false
+      },
+      {
+        "input": "0",
+        "expected_output": "Zero",
+        "is_hidden": false
+      }
+    ],
+    "hidden_cases": [
+      {
+        "input": "-1000000",
+        "expected_output": "Negative",
+        "is_hidden": true
+      },
+      {
+        "input": "1000000",
+        "expected_output": "Positive",
+        "is_hidden": true
+      },
+      {
+        "input": "-1",
+        "expected_output": "Negative",
+        "is_hidden": true
+      },
+      {
+        "input": "1",
+        "expected_output": "Positive",
+        "is_hidden": true
+      },
+      {
+        "input": "0",
+        "expected_output": "Zero",
+        "is_hidden": true
+      }
+    ]
   }
 }

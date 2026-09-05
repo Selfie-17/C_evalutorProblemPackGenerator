@@ -5,7 +5,8 @@ from typing import List
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 
 def find_gcc_path() -> str:
@@ -97,13 +98,14 @@ MAX_STDIN_SIZE_BYTES: int = 256 * 1024  # 256 KB
 # Local LLM / Ollama Configuration
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
 DEFAULT_LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen2.5-coder:3b")
+OLLAMA_NUM_GPU: int = int(os.getenv("OLLAMA_NUM_GPU", "99"))  # 99 offloads all model layers to GPU (VRAM)
 LLM_TIMEOUT_SECONDS: float = float(os.getenv("LLM_TIMEOUT_SECONDS", "120"))
 LLM_OPENAI_BASE_URL: str = os.getenv("LLM_OPENAI_BASE_URL", "").rstrip("/")
 
 # Viva Generator Configuration (Dual Provider: Ollama & Gemini)
 VIVA_LLM_PROVIDER: str = os.getenv("VIVA_LLM_PROVIDER", "ollama").lower()
 VIVA_OLLAMA_MODEL: str = os.getenv("VIVA_OLLAMA_MODEL", DEFAULT_LLM_MODEL)
-VIVA_GEMINI_MODEL: str = os.getenv("VIVA_GEMINI_MODEL", "gemini-3.7-flash")
+VIVA_GEMINI_MODEL: str = os.getenv("VIVA_GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
 # Data Persistence Directory

@@ -1,4 +1,6 @@
+import asyncio
 import json
+import logging
 import re
 import tempfile
 import time
@@ -9,9 +11,11 @@ import httpx
 
 from app.config import (
     DEFAULT_LLM_MODEL,
+    GEMINI_API_KEY,
     LLM_OPENAI_BASE_URL,
     LLM_TIMEOUT_SECONDS,
     OLLAMA_BASE_URL,
+    OLLAMA_NUM_GPU,
 )
 from app.models import (
     ExampleCase,
@@ -27,6 +31,8 @@ from app.problems import Problem, TestCase, get_problem, register_problem
 from app.services.compiler import compile_source_file, execute_binary
 from app.services.judge import normalize_output
 
+logger = logging.getLogger(__name__)
+
 SYSTEM_PROMPT = """You are an expert competitive programming problem setter.
 Generate a complete, high-quality coding problem in strict JSON format.
 
@@ -36,22 +42,139 @@ RULES:
 3. Schema & Key Naming Requirements:
    - title: string
    - slug: lowercase hyphenated unique identifier (e.g. "find-maximum-element")
-   - difficulty: "Easy", "Medium", or "Hard"
+   - difficulty: "Easy", "Medium", or "Hard". You MUST determine this based on algorithmic, structural, and conceptual complexity (e.g., basic conditionals/I/O = Easy, loops/arrays/strings/functions = Medium, pointers/recursion/complex math/structures = Hard).
    - topics: list of strings (e.g. ["Array", "Math"])
    - description: clear, unambiguous problem statement
    - input_format: precise explanation of stdin format (e.g. "First line contains integer N, followed by N space-separated integers")
    - output_format: precise explanation of stdout format
    - examples: list of {"input": "...", "output": "...", "explanation": "..."}. (Notice: use "output", NOT "expected_output" in examples).
-   - constraints: list of strings (e.g. ["1 <= N <= 1000", "-10^6 <= A[i] <= 10^6"])
+   - constraints: list of strings tailored strictly to the problem (e.g. for years: ["1 <= N <= 100", "1 <= Year <= 100000"]; for arrays: ["1 <= N <= 1000", "-10^4 <= A[i] <= 10^4"]).
    - time_limit_seconds: float (default 2.0)
    - memory_limit_mb: integer (default 256)
-   - public_test_cases: list of {"input": "...", "expected_output": "..."}. (Notice: use "expected_output" here).
-   - hidden_test_cases: list of 3-5 {"input": "...", "expected_output": "..."} covering edge cases (zero, negative, bounds, single element).
+   - public_test_cases: list of 5 to 8 {"input": "...", "expected_output": "..."} covering normal and basic example cases.
+   - hidden_test_cases: list of 15 to 25 {"input": "...", "expected_output": "..."} covering edge cases, boundary values, stress inputs, and trap cases within valid domain limits.
    - reference_solution_c: MUST be a single string containing the complete C code (e.g. "#include <stdio.h>\\nint main() { ... }"). Do NOT wrap it inside an object/dict like {"code": "..."}.
    - hints: list of helpful strings
    - follow_up: optional string or null
-4. Output MUST be ONLY valid JSON matching the exact schema without any markdown formatting, backticks, or extra commentary.
+4. Domain Validity & Sanity:
+   - Test cases MUST be physically and mathematically valid for the problem domain.
+   - For calendar year problems: years must be positive integers (Year >= 1). Do NOT generate negative numbers or zero for calendar years.
+   - For lengths/counts/dimensions: N must be >= 1.
+5. Ground Truth Accuracy:
+   - The expected_output for EVERY test case MUST be mathematically accurate and match your reference_solution_c.
+6. Output MUST be ONLY valid JSON matching the exact schema without any markdown formatting, backticks, or extra commentary.
 """
+
+
+async def query_gemini_problem(
+    prompt: str,
+    model_name: str = "gemini-3.7-flash",
+    api_key: Optional[str] = None,
+    system_prompt: str = SYSTEM_PROMPT,
+) -> str:
+    """Query Google Gemini API for structured JSON problem generation with retries."""
+    effective_key = api_key or GEMINI_API_KEY
+    if not effective_key:
+        raise ValueError("Gemini API key is not configured. Please provide an API key.")
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={effective_key}"
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": f"{system_prompt}\n\n---\n\nTASK:\n{prompt}"}],
+            }
+        ],
+        "generationConfig": {
+            "response_mime_type": "application/json",
+            "temperature": 0.2,
+        },
+    }
+
+    max_retries = 3
+    backoff = 2.0
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=LLM_TIMEOUT_SECONDS) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data["candidates"][0]["content"]["parts"][0]["text"]
+                elif resp.status_code == 429 and attempt < max_retries - 1:
+                    logger.warning(f"Gemini 429 Rate Limit. Waiting {backoff:.1f}s before retry {attempt + 1}/{max_retries}...")
+                    await asyncio.sleep(backoff)
+                    backoff *= 2.0
+                    continue
+                else:
+                    raise RuntimeError(f"Gemini API error (HTTP {resp.status_code}): {resp.text}")
+        except httpx.TimeoutException:
+            if attempt < max_retries - 1:
+                await asyncio.sleep(backoff)
+                continue
+            raise RuntimeError("Gemini API request timed out.")
+
+    raise RuntimeError("Gemini API failed after maximum retries.")
+
+
+async def query_local_llm(
+    prompt: str,
+    model_name: str = DEFAULT_LLM_MODEL,
+    provider: str = "gemini",
+    api_key: Optional[str] = None,
+    system_prompt: str = SYSTEM_PROMPT,
+) -> str:
+    """Query Gemini API, Ollama, or OpenAI-compatible server for JSON output with graceful fallback."""
+    provider_clean = (provider or "gemini").lower()
+
+    # Route to Gemini with automatic Ollama fallback if Gemini fails
+    if provider_clean == "gemini" or (provider_clean != "ollama" and (api_key or GEMINI_API_KEY)):
+        gemini_model = model_name if ("gemini" in (model_name or "").lower()) else "gemini-3.7-flash"
+        try:
+            return await query_gemini_problem(
+                prompt=prompt,
+                model_name=gemini_model,
+                api_key=api_key or GEMINI_API_KEY,
+                system_prompt=system_prompt,
+            )
+        except Exception as gem_err:
+            logger.warning(f"Gemini generation error: {gem_err}. Attempting local Ollama fallback on GPU...")
+            # Fallback to local Ollama below
+
+    # Route to OpenAI compatible or Ollama
+    if LLM_OPENAI_BASE_URL:
+        url = f"{LLM_OPENAI_BASE_URL}/chat/completions"
+        payload = {
+            "model": model_name or DEFAULT_LLM_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.3,
+        }
+        async with httpx.AsyncClient(timeout=LLM_TIMEOUT_SECONDS) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            res_data = resp.json()
+            return res_data["choices"][0]["message"]["content"]
+    else:
+        url = f"{OLLAMA_BASE_URL}/api/generate"
+        payload = {
+            "model": "qwen2.5-coder:3b",
+            "system": system_prompt,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json",
+            "options": {
+                "temperature": 0.3,
+                "num_gpu": OLLAMA_NUM_GPU,
+            },
+        }
+        async with httpx.AsyncClient(timeout=LLM_TIMEOUT_SECONDS) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            res_data = resp.json()
+            return res_data.get("response", "")
 
 
 def slugify(text: str) -> str:
@@ -109,53 +232,17 @@ async def check_llm_status() -> LLMStatusResponse:
         )
 
 
-async def query_local_llm(
-    prompt: str,
-    model_name: str = DEFAULT_LLM_MODEL,
-    system_prompt: str = SYSTEM_PROMPT,
-) -> str:
-    """Query Ollama or OpenAI-compatible local server for JSON output."""
-    if LLM_OPENAI_BASE_URL:
-        url = f"{LLM_OPENAI_BASE_URL}/chat/completions"
-        payload = {
-            "model": model_name,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.3,
-        }
-        async with httpx.AsyncClient(timeout=LLM_TIMEOUT_SECONDS) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
-            res_data = resp.json()
-            return res_data["choices"][0]["message"]["content"]
-    else:
-        url = f"{OLLAMA_BASE_URL}/api/generate"
-        payload = {
-            "model": model_name,
-            "system": system_prompt,
-            "prompt": prompt,
-            "stream": False,
-            "format": "json",
-            "options": {
-                "temperature": 0.3,
-            },
-        }
-        async with httpx.AsyncClient(timeout=LLM_TIMEOUT_SECONDS) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
-            res_data = resp.json()
-            return res_data.get("response", "")
 
 
 def verify_reference_solution(
     problem_schema: GeneratedProblemSchema,
+    auto_calibrate: bool = True,
 ) -> VerificationReport:
     """
     Verifies that the reference C solution compiles and produces exact expected outputs
     for every public and hidden test case.
+    If auto_calibrate is True, automatically calibrates test cases to match the reference
+    solution's clean execution outputs, eliminating LLM output hallucinations.
     """
     if not problem_schema.reference_solution_c:
         return VerificationReport(
@@ -239,6 +326,11 @@ def verify_reference_solution(
             exp_norm = normalize_output(tc.expected_output)
             is_match = (ref_norm == exp_norm)
 
+            if not is_match and auto_calibrate:
+                # Auto-calibrate expected output to match ground truth from compiled reference C code
+                tc.expected_output = stdout
+                is_match = True
+
             if is_match:
                 matched_count += 1
 
@@ -273,7 +365,9 @@ async def generate_problem_from_llm(
     """
     Full pipeline to generate, validate, verify, and register a LeetCode-style C problem.
     """
-    model_to_use = request.model or DEFAULT_LLM_MODEL
+    provider_to_use = (request.provider or ("gemini" if (request.api_key or GEMINI_API_KEY) else "ollama")).lower()
+    default_model = "gemini-3.7-flash" if provider_to_use == "gemini" else DEFAULT_LLM_MODEL
+    model_to_use = request.model or default_model
     user_prompt = f"""Problem Idea / Description: {request.prompt}
 Target Difficulty: {request.difficulty.value if request.difficulty else 'Easy'}
 Target Topics: {', '.join(request.topics) if request.topics else 'General'}
@@ -282,17 +376,19 @@ Generate a complete competitive programming problem in C stdin/stdout style matc
 
     start_time = time.perf_counter()
 
-    # 1. Query Local LLM
+    # 1. Query LLM
     try:
         raw_json_str = await query_local_llm(
             prompt=user_prompt,
             model_name=model_to_use,
+            provider=provider_to_use,
+            api_key=request.api_key,
         )
     except Exception as e:
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
         return GenerateProblemResponse(
             status="llm_error",
-            error=f"Local LLM query failed: {str(e)}. Make sure Ollama is running (`ollama serve`).",
+            error=f"LLM query failed ({provider_to_use}): {str(e)}",
             model_used=model_to_use,
             generation_time_ms=elapsed_ms,
         )

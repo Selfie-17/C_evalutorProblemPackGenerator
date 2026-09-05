@@ -26,6 +26,33 @@ class DifficultyEnum(str, Enum):
     HARD = "Hard"
 
 
+class JudgeVerdict(str, Enum):
+    ACCEPTED = "ACCEPTED"
+    WRONG_ANSWER = "WRONG_ANSWER"
+    COMPILATION_ERROR = "COMPILATION_ERROR"
+    RUNTIME_ERROR = "RUNTIME_ERROR"
+    TIME_LIMIT_EXCEEDED = "TIME_LIMIT_EXCEEDED"
+    NOT_SUBMITTED = "NOT_SUBMITTED"
+    INTERNAL_ERROR = "INTERNAL_ERROR"
+
+
+class CompilationDiagnostic(BaseModel):
+    line: Optional[int] = Field(default=None, description="1-based source code line number")
+    column: Optional[int] = Field(default=None, description="1-based column number")
+    message: str = Field(..., description="Compiler error, warning, or diagnostic text")
+    severity: str = Field(default="error", description="Diagnostic severity: error, warning, or note")
+    source_context: Optional[str] = Field(default=None, description="Snippet of source code context around error")
+
+
+class CompilationResult(BaseModel):
+    success: bool = Field(..., description="True if compiler produced an executable binary with exit code 0")
+    exit_code: int = Field(default=0, description="GCC exit code")
+    stdout: str = Field(default="", description="Compiler stdout")
+    stderr: str = Field(default="", description="Compiler stderr")
+    compiler_output: str = Field(default="", description="Full raw GCC compiler output")
+    errors: List[CompilationDiagnostic] = Field(default_factory=list, description="Parsed structured error diagnostics")
+
+
 # --- Raw Execution Models (/api/run) ---
 
 class ExecuteCodeRequest(BaseModel):
@@ -73,6 +100,10 @@ class ExecuteCodeResponse(BaseModel):
     compilation_output: str = Field(
         default="",
         description="Compiler output, warnings, or compilation error messages",
+    )
+    diagnostics: List[CompilationDiagnostic] = Field(
+        default_factory=list,
+        description="Parsed structured compilation errors and warnings",
     )
     execution_time_ms: float = Field(
         default=0.0,
@@ -142,6 +173,10 @@ class SubmitCodeResponse(BaseModel):
     compilation_output: str = Field(
         default="",
         description="Compiler output/errors if compilation failed",
+    )
+    compilation_diagnostics: List[CompilationDiagnostic] = Field(
+        default_factory=list,
+        description="Parsed structured compiler diagnostics",
     )
     stderr: str = Field(
         default="",
@@ -312,7 +347,9 @@ class GenerateProblemRequest(BaseModel):
     difficulty: Optional[DifficultyEnum] = Field(default=DifficultyEnum.EASY, description="Desired problem difficulty")
     topics: List[str] = Field(default_factory=list, description="Optional list of topic tags to guide generation")
     verify_with_reference: Optional[bool] = Field(default=True, description="Whether to compile and execute the generated reference C code against all test cases")
-    model: Optional[str] = Field(default=None, description="Optional local LLM model override (defaults to configured .env model)")
+    provider: Optional[str] = Field(default="gemini", description="LLM provider: 'gemini' or 'ollama'")
+    model: Optional[str] = Field(default=None, description="Optional LLM model override")
+    api_key: Optional[str] = Field(default=None, description="Optional Gemini API Key")
 
 
 class VerificationCaseResult(BaseModel):
@@ -486,4 +523,266 @@ class GenerateVivaResponse(BaseModel):
     code_summary: Optional[str] = None
     generation_time_ms: float = 0.0
     error: Optional[str] = None
+
+
+# ==============================================================================
+# --- C Lab Evaluation Platform Models ---
+# ==============================================================================
+
+class TestCaseSummary(BaseModel):
+    total: int = 0
+    passed: int = 0
+    failed: int = 0
+
+
+class ExecutionSummary(BaseModel):
+    total_time_ms: float = 0.0
+    max_time_ms: float = 0.0
+
+
+class TestCaseExecutionDetail(BaseModel):
+    test_case_number: int
+    is_hidden: bool = False
+    input: Optional[str] = None
+    expected_output: Optional[str] = None
+    actual_output: Optional[str] = None
+    passed: bool = False
+    status: str = "wrong_answer"
+    exit_code: Optional[int] = None
+    stderr: str = ""
+    execution_time_ms: float = 0.0
+
+
+class StandardizedJudgeResult(BaseModel):
+    verdict: JudgeVerdict = JudgeVerdict.ACCEPTED
+    test_cases: TestCaseSummary = Field(default_factory=TestCaseSummary)
+    execution: ExecutionSummary = Field(default_factory=ExecutionSummary)
+    compilation: CompilationResult
+    failed_test_case: Optional[int] = None
+    details: List[TestCaseExecutionDetail] = Field(default_factory=list)
+
+
+# --- Week Models ---
+
+class WeekCreateRequest(BaseModel):
+    week_number: int = Field(..., ge=1, le=52, description="Week sequence number")
+    title: str = Field(..., min_length=2, max_length=120, description="Week title e.g. 'Basic C Programming'")
+    description: Optional[str] = Field(default="", description="Optional description of the week lab objectives")
+
+
+class WeekUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+
+
+class WeekResponse(BaseModel):
+    id: str
+    week_number: int
+    title: str
+    description: str
+    status: str
+    created_at: str
+    updated_at: str
+    problem_count: int = 0
+    student_count: int = 0
+    sections: List[str] = Field(default_factory=list)
+
+
+# --- Problem Pack Models ---
+
+class ProblemInPack(BaseModel):
+    id: str
+    week_id: str
+    number: int
+    title: str
+    slug: str
+    description: str
+    difficulty: str = "Easy"
+    topics: List[str] = Field(default_factory=list)
+    constraints: List[str] = Field(default_factory=list)
+    hints: List[str] = Field(default_factory=list)
+    time_limit: float = 2.0
+    input_format: Optional[str] = None
+    output_format: Optional[str] = None
+    public_test_cases: List[TestCaseSchema] = Field(default_factory=list)
+    hidden_test_cases: List[TestCaseSchema] = Field(default_factory=list)
+    reference_solution_c: Optional[str] = None
+    is_verified: bool = False
+    verification_report: Optional[VerificationReport] = None
+
+
+class GeneratePackRequest(BaseModel):
+    number_of_problems: int = Field(default=10, ge=1, le=15, description="Number of problems to generate (default 10)")
+    difficulty: str = Field(default="Easy", description="Overall difficulty (Easy, Medium, Hard)")
+    topics: List[str] = Field(default_factory=list, description="Target topics (e.g. ['loops', 'conditions', 'arrays'])")
+    verify_with_reference: bool = Field(default=True, description="Verify reference C solution against test cases")
+    provider: Optional[str] = Field(default="gemini", description="LLM provider: 'gemini' or 'ollama'")
+    model: Optional[str] = Field(default="gemini-3.7-flash", description="Model override (e.g. 'gemini-3.7-flash', 'gemini-3.8-flash', or 'qwen2.5-coder:3b')")
+    api_key: Optional[str] = Field(default=None, description="Optional API key for Gemini")
+
+
+class GenerateFromQuestionsRequest(BaseModel):
+    raw_text: Optional[str] = Field(
+        default=None,
+        description="Raw multiline text of questions (e.g. 1. Write a C program to ... \n 2. Write a C program to ...)",
+    )
+    questions: List[str] = Field(
+        default_factory=list,
+        description="Explicit list of question prompts",
+    )
+    difficulty: Optional[str] = Field(default=None, description="Optional difficulty override; defaults to model classification")
+    verify_with_reference: bool = Field(default=True, description="Verify reference C solution with GCC compiler")
+    provider: Optional[str] = Field(default="gemini", description="LLM provider: 'gemini' or 'ollama'")
+    model: Optional[str] = Field(default="gemini-3.7-flash", description="Model override (e.g. 'gemini-3.7-flash', 'gemini-3.8-flash', or 'qwen2.5-coder:3b')")
+    api_key: Optional[str] = Field(default=None, description="Optional API key for Gemini")
+    replace_all: bool = Field(default=False, description="Whether to replace all existing problems in the week (default: False, appends)")
+
+
+class GeneratePackResponse(BaseModel):
+    week_id: str
+    status: str
+    total_generated: int = 0
+    total_verified: int = 0
+    problems: List[ProblemInPack] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
+
+
+# --- ZIP Validation Models ---
+
+class StudentProgramValidationItem(BaseModel):
+    problem_number: int
+    found: bool
+    filename: Optional[str] = None
+
+
+class StudentValidationItem(BaseModel):
+    student_id: str
+    total_found: int
+    missing_count: int
+    programs: List[StudentProgramValidationItem] = Field(default_factory=list)
+
+
+class ZipValidationReport(BaseModel):
+    staging_token: str
+    zip_filename: str
+    section: str = Field(default="Section A", description="Target class section (e.g. Section A, Section B)")
+    total_students: int
+    total_expected_programs: int
+    total_found_programs: int
+    total_missing_programs: int
+    students: List[StudentValidationItem] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+
+
+# --- Evaluation Job Models ---
+
+class EvaluationJobStartRequest(BaseModel):
+    week_id: str
+    staging_token: str
+    section: Optional[str] = Field(default="Section A", description="Target class section being evaluated")
+    continue_on_error: bool = Field(default=True, description="Proceed with remaining programs even if one fails")
+
+
+class EvaluationJobResponse(BaseModel):
+    job_id: str
+    week_id: str
+    section: Optional[str] = "Section A"
+    status: str  # "queued", "running", "completed", "failed"
+    total_students: int = 0
+    processed_students: int = 0
+    total_submissions: int = 0
+    processed_submissions: int = 0
+    current_student: Optional[str] = None
+    created_at: str
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    error_message: Optional[str] = None
+    progress_percentage: float = 0.0
+
+
+# --- Student & Submission Detail Models ---
+
+class StudentSubmissionDetail(BaseModel):
+    submission_id: str
+    problem_id: str
+    problem_number: int
+    problem_title: str
+    section: Optional[str] = "Section A"
+    verdict: JudgeVerdict
+    source_file: str
+    source_code: str
+    passed_test_cases: int
+    total_test_cases: int
+    total_time_ms: float
+    compilation: CompilationResult
+    test_results: List[TestCaseExecutionDetail] = Field(default_factory=list)
+    submitted_at: str
+
+
+class StudentSummaryItem(BaseModel):
+    student_id: str
+    week_id: str
+    section: Optional[str] = "Section A"
+    total_problems: int = 10
+    solved_count: int = 0
+    acceptance_rate: float = 0.0
+    compilation_errors: int = 0
+    wrong_answers: int = 0
+    runtime_errors: int = 0
+    tle_count: int = 0
+    not_submitted: int = 0
+    average_time_ms: float = 0.0
+
+
+class StudentDetailResponse(BaseModel):
+    student_id: str
+    week_id: str
+    week_number: int
+    section: Optional[str] = "Section A"
+    summary: StudentSummaryItem
+    submissions: List[StudentSubmissionDetail] = Field(default_factory=list)
+
+
+# --- Analytics Models ---
+
+class VerdictDistribution(BaseModel):
+    accepted: int = 0
+    wrong_answer: int = 0
+    compilation_error: int = 0
+    runtime_error: int = 0
+    time_limit_exceeded: int = 0
+    not_submitted: int = 0
+
+
+class ProblemAnalyticsItem(BaseModel):
+    problem_number: int
+    problem_id: str
+    title: str
+    difficulty: str
+    total_submissions: int = 0
+    accepted_count: int = 0
+    wrong_answer_count: int = 0
+    compilation_error_count: int = 0
+    runtime_error_count: int = 0
+    tle_count: int = 0
+    acceptance_rate: float = 0.0
+    avg_time_ms: float = 0.0
+
+
+class WeekAnalyticsResponse(BaseModel):
+    week_id: str
+    week_number: int
+    title: str
+    section: Optional[str] = None  # None for consolidated all sections, or 'Section A'
+    available_sections: List[str] = Field(default_factory=list)
+    total_students: int = 0
+    total_programs: int = 0
+    verdicts: VerdictDistribution = Field(default_factory=VerdictDistribution)
+    overall_acceptance_rate: float = 0.0
+    avg_test_cases_passed_pct: float = 0.0
+    avg_execution_time_ms: float = 0.0
+    problem_stats: List[ProblemAnalyticsItem] = Field(default_factory=list)
+    top_students: List[str] = Field(default_factory=list)
+    struggling_students: List[str] = Field(default_factory=list)
 

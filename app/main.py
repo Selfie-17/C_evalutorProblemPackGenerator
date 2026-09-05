@@ -19,16 +19,25 @@ from app.models import (
     SubmitCodeRequest,
     SubmitCodeResponse,
 )
+from app.api.analytics import router as analytics_router
+from app.api.evaluations import router as evaluations_router
+from app.api.problem_engine import router as problem_engine_router
+from app.api.students import router as students_router
+from app.api.weeks import router as weeks_router
+from app.database.db import init_db
 from app.problems import get_problem, list_problems
 from app.services.compiler import compile_and_run_c, get_compiler_health
 from app.services.generator import check_llm_status, generate_problem_from_llm
 from app.services.judge import judge_solution, run_custom_testcases
 from app.services.viva import generate_viva_questions
 
+# Initialize database schema on startup
+init_db()
+
 app = FastAPI(
-    title="LeetCode-Style C Code Judge, Generator & Viva Engine API",
-    description="A high-performance C compilation, execution, online judging, problem generation, and personalized viva generator backend powered by MSYS64 GCC, Ollama, and Gemini.",
-    version="3.5.0",
+    title="C Lab Evaluation Platform & LeetCode Judge API",
+    description="A high-performance C compilation, execution, batch lab evaluation, problem pack generator, and analytics engine powered by MSYS64 GCC and SQLite.",
+    version="4.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -41,6 +50,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register C Lab Evaluation Platform routers
+app.include_router(weeks_router)
+app.include_router(evaluations_router)
+app.include_router(students_router)
+app.include_router(analytics_router)
+app.include_router(problem_engine_router)
 
 
 @app.get("/", tags=["Info"])
