@@ -28,4 +28,7 @@ reference.c
 
 # Database / Persisted Data (optional local test data)
 data/*.json
+data/*.db
+data/staging/
 !data/.gitkeep
+
