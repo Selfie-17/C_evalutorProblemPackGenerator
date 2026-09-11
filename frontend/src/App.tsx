@@ -14,16 +14,15 @@ import { fetchHealth, fetchWeeks } from './services/api';
 import { DashboardView } from './views/DashboardView';
 import { WeeksView } from './views/WeeksView';
 import { WeekDetailView } from './views/WeekDetailView';
+import { CompilerView } from './views/CompilerView';
 import { NewWeekModal } from './components/NewWeekModal';
-import { TestCompilerModal } from './components/TestCompilerModal';
 
 export function App() {
-  const [activeNav, setActiveNav] = useState<'dashboard' | 'weeks' | 'week_detail'>('dashboard');
+  const [activeNav, setActiveNav] = useState<'dashboard' | 'weeks' | 'week_detail' | 'compiler'>('dashboard');
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [isNewWeekModalOpen, setIsNewWeekModalOpen] = useState(false);
-  const [isTestCompilerOpen, setIsTestCompilerOpen] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
 
   const loadData = () => {
@@ -98,6 +97,14 @@ export function App() {
             <span>Laboratory Weeks</span>
           </button>
 
+          <button
+            onClick={() => setActiveNav('compiler')}
+            className={`nav-item ${activeNav === 'compiler' ? 'active' : ''}`}
+          >
+            <Terminal size={18} />
+            <span>Test Compiler</span>
+          </button>
+
 
           {/* If a week is active, show quick shortcut */}
           {selectedWeekId && (
@@ -132,7 +139,7 @@ export function App() {
         {/* Sidebar Footer with GCC Status */}
         <div className="sidebar-footer">
           <div
-            onClick={() => setIsTestCompilerOpen(true)}
+            onClick={() => setActiveNav('compiler')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -143,7 +150,7 @@ export function App() {
               border: `1px solid ${health?.gcc_available ? '#a7f3d0' : '#fecaca'}`,
               cursor: 'pointer',
             }}
-            title="Click to open C Compiler Test Sandbox"
+            title="Click to open Test Compiler page"
           >
             <Terminal size={16} color={health?.gcc_available ? '#059669' : '#dc2626'} />
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -171,7 +178,7 @@ export function App() {
                     fontWeight: 700,
                   }}
                 >
-                  Test
+                  Open
                 </span>
               </div>
               <div
@@ -197,6 +204,7 @@ export function App() {
           <h1 className="page-title">
             {activeNav === 'dashboard' && 'Dashboard Overview'}
             {activeNav === 'weeks' && 'Laboratory Weeks'}
+            {activeNav === 'compiler' && 'Test Compiler Sandbox'}
             {activeNav === 'week_detail' &&
               (weeks.find((w) => w.id === selectedWeekId)
                 ? `Week ${weeks.find((w) => w.id === selectedWeekId)!.week_number}: ${
@@ -207,12 +215,12 @@ export function App() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
-              onClick={() => setIsTestCompilerOpen(true)}
-              className="btn btn-secondary btn-sm"
+              onClick={() => setActiveNav('compiler')}
+              className={`btn ${activeNav === 'compiler' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               title="Open C Compiler Live Diagnostic & Code Runner"
             >
-              <Terminal size={15} color="#4f46e5" />
+              <Terminal size={15} />
               <span>Test Compiler</span>
             </button>
             <button onClick={() => setIsNewWeekModalOpen(true)} className="btn btn-primary btn-sm">
@@ -250,7 +258,7 @@ export function App() {
               onSelectWeek={handleSelectWeek}
               onOpenNewWeek={() => setIsNewWeekModalOpen(true)}
               onDeleteWeek={handleWeekDeleted}
-              onOpenTestCompiler={() => setIsTestCompilerOpen(true)}
+              onOpenTestCompiler={() => setActiveNav('compiler')}
             />
           )}
 
@@ -262,6 +270,9 @@ export function App() {
             />
           )}
 
+          {activeNav === 'compiler' && (
+            <CompilerView initialHealth={health} />
+          )}
 
           {activeNav === 'week_detail' && selectedWeekId && (
             <WeekDetailView
@@ -279,13 +290,6 @@ export function App() {
         onClose={() => setIsNewWeekModalOpen(false)}
         onCreated={handleWeekCreated}
         nextWeekNumber={nextWeekNumber}
-      />
-
-      {/* Test Compiler Diagnostic Modal */}
-      <TestCompilerModal
-        isOpen={isTestCompilerOpen}
-        onClose={() => setIsTestCompilerOpen(false)}
-        initialHealth={health}
       />
     </div>
   );
