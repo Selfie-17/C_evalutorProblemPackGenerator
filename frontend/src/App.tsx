@@ -15,6 +15,7 @@ import { DashboardView } from './views/DashboardView';
 import { WeeksView } from './views/WeeksView';
 import { WeekDetailView } from './views/WeekDetailView';
 import { NewWeekModal } from './components/NewWeekModal';
+import { TestCompilerModal } from './components/TestCompilerModal';
 
 export function App() {
   const [activeNav, setActiveNav] = useState<'dashboard' | 'weeks' | 'week_detail'>('dashboard');
@@ -22,10 +23,22 @@ export function App() {
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [isNewWeekModalOpen, setIsNewWeekModalOpen] = useState(false);
+  const [isTestCompilerOpen, setIsTestCompilerOpen] = useState(false);
+  const [backendError, setBackendError] = useState<string | null>(null);
 
   const loadData = () => {
-    fetchWeeks().then(setWeeks).catch(console.error);
-    fetchHealth().then(setHealth).catch(console.error);
+    fetchWeeks()
+      .then((data) => {
+        setWeeks(data);
+        setBackendError(null);
+      })
+      .catch((err) => {
+        console.error(err);
+        setBackendError(err.message || 'Failed to connect to backend API');
+      });
+    fetchHealth()
+      .then(setHealth)
+      .catch(() => null);
   };
 
   useEffect(() => {
@@ -119,6 +132,7 @@ export function App() {
         {/* Sidebar Footer with GCC Status */}
         <div className="sidebar-footer">
           <div
+            onClick={() => setIsTestCompilerOpen(true)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -127,7 +141,9 @@ export function App() {
               borderRadius: 'var(--radius-md)',
               backgroundColor: health?.gcc_available ? '#ecfdf5' : '#fef2f2',
               border: `1px solid ${health?.gcc_available ? '#a7f3d0' : '#fecaca'}`,
+              cursor: 'pointer',
             }}
+            title="Click to open C Compiler Test Sandbox"
           >
             <Terminal size={16} color={health?.gcc_available ? '#059669' : '#dc2626'} />
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -138,20 +154,25 @@ export function App() {
                   color: health?.gcc_available ? '#065f46' : '#991b1b',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  justifyContent: 'space-between',
                 }}
               >
-                {health?.gcc_available ? (
-                  <>
-                    <CheckCircle2 size={12} />
-                    <span>GCC Ready</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertTriangle size={12} />
-                    <span>Compiler Offline</span>
-                  </>
-                )}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {health?.gcc_available ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+                  <span>{health?.gcc_available ? 'GCC Ready' : 'Compiler Offline'}</span>
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    color: '#4f46e5',
+                    backgroundColor: '#eef2ff',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    fontWeight: 700,
+                  }}
+                >
+                  Test
+                </span>
               </div>
               <div
                 style={{
@@ -185,11 +206,43 @@ export function App() {
           </h1>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              onClick={() => setIsTestCompilerOpen(true)}
+              className="btn btn-secondary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Open C Compiler Live Diagnostic & Code Runner"
+            >
+              <Terminal size={15} color="#4f46e5" />
+              <span>Test Compiler</span>
+            </button>
             <button onClick={() => setIsNewWeekModalOpen(true)} className="btn btn-primary btn-sm">
               <span>+ Create Week</span>
             </button>
           </div>
         </header>
+        {backendError && (
+          <div
+            style={{
+              margin: '16px 24px 0',
+              padding: '12px 16px',
+              backgroundColor: '#fffbeb',
+              border: '1px solid #fde68a',
+              borderLeft: '4px solid #f59e0b',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+            }}
+          >
+            <AlertTriangle size={20} color="#d97706" style={{ marginTop: '2px', flexShrink: 0 }} />
+            <div style={{ fontSize: '0.85rem', color: '#92400e', lineHeight: 1.5 }}>
+              <strong>Backend Connection Notice:</strong> {backendError}
+              <div style={{ marginTop: '4px', fontSize: '0.8rem', color: '#b45309' }}>
+                If you deployed on Vercel, please set <code>VITE_API_URL</code> in Vercel <strong>Settings &rarr; Environment Variables</strong> to your Render backend URL (e.g. <code>https://c-lab-evaluator-backend.onrender.com</code>) and trigger a <strong>Redeploy</strong>.
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="content-body">
           {activeNav === 'dashboard' && (
@@ -197,6 +250,7 @@ export function App() {
               onSelectWeek={handleSelectWeek}
               onOpenNewWeek={() => setIsNewWeekModalOpen(true)}
               onDeleteWeek={handleWeekDeleted}
+              onOpenTestCompiler={() => setIsTestCompilerOpen(true)}
             />
           )}
 
@@ -225,6 +279,13 @@ export function App() {
         onClose={() => setIsNewWeekModalOpen(false)}
         onCreated={handleWeekCreated}
         nextWeekNumber={nextWeekNumber}
+      />
+
+      {/* Test Compiler Diagnostic Modal */}
+      <TestCompilerModal
+        isOpen={isTestCompilerOpen}
+        onClose={() => setIsTestCompilerOpen(false)}
+        initialHealth={health}
       />
     </div>
   );

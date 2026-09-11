@@ -336,3 +336,20 @@ export interface LeetCodeExecutionResponse {
   results?: LeetCodeExecutionResultItem[];
 }
 
+export interface RawExecuteCodeRequest {
+  code: string;
+  stdin?: string;
+  timeout?: number;
+}
+
+export interface RawExecuteCodeResponse {
+  status: 'success' | 'compilation_error' | 'runtime_error' | 'time_limit_exceeded' | 'internal_error';
+  stdout: string;
+  stderr: string;
+  exit_code?: number | null;
+  compilation_output: string;
+  diagnostics: CompilationDiagnostic[];
+  execution_time_ms: number;
+}
+
+

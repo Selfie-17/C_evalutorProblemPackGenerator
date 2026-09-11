@@ -12,20 +12,64 @@ import {
   Week,
   WeekAnalytics,
   ZipValidationReport,
+  RawExecuteCodeResponse,
 } from '../types';
 
 const BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
+if (typeof window !== 'undefined' && !import.meta.env.VITE_API_URL && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+  console.warn(
+    '⚠️ [VITE_API_URL] is empty in production! Requests to /api/* will hit this static host and return HTML / 405 errors. Please configure VITE_API_URL in your Vercel Project Settings to your Render backend URL.'
+  );
+}
+
+export async function handleJsonResponse<T>(res: Response, fallbackError: string): Promise<T> {
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('text/html')) {
+    throw new Error(
+      `Received HTML (<!doctype html>) instead of JSON from backend (HTTP ${res.status}). ` +
+      `This occurs when VITE_API_URL is missing or misconfigured in Vercel. ` +
+      `Please set VITE_API_URL in your Vercel Project Settings to your Render backend URL (e.g. https://c-lab-evaluator-backend.onrender.com) and redeploy.`
+    );
+  }
+  if (!res.ok) {
+    if (res.status === 405) {
+      throw new Error(
+        `HTTP 405 Method Not Allowed on ${res.url}. Ensure VITE_API_URL is configured in your Vercel Project Settings and redeploy.`
+      );
+    }
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || fallbackError);
+  }
+  return res.json();
+}
+
+export async function handleEmptyResponse(res: Response, fallbackError: string): Promise<void> {
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('text/html')) {
+    throw new Error(
+      `Received HTML instead of API response (HTTP ${res.status}). Please verify VITE_API_URL in Vercel.`
+    );
+  }
+  if (!res.ok) {
+    if (res.status === 405) {
+      throw new Error(
+        `HTTP 405 Method Not Allowed on ${res.url}. Ensure VITE_API_URL is configured in your Vercel Project Settings and redeploy.`
+      );
+    }
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || fallbackError);
+  }
+}
+
 export async function fetchHealth(): Promise<HealthStatus> {
   const res = await fetch(`${BASE_URL}/health`);
-  if (!res.ok) throw new Error('Failed to fetch compiler health');
-  return res.json();
+  return handleJsonResponse(res, 'Failed to fetch compiler health');
 }
 
 export async function fetchWeeks(): Promise<Week[]> {
   const res = await fetch(`${BASE_URL}/api/weeks`);
-  if (!res.ok) throw new Error('Failed to fetch weeks');
-  return res.json();
+  return handleJsonResponse(res, 'Failed to fetch weeks');
 }
 
 export async function createWeek(weekNumber: number, title: string, description: string = ''): Promise<Week> {
@@ -34,46 +78,39 @@ export async function createWeek(weekNumber: number, title: string, description:
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ week_number: weekNumber, title, description }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to create week');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to create week');
 }
 
 export async function fetchWeek(weekId: string): Promise<Week> {
   const res = await fetch(`${BASE_URL}/api/weeks/${weekId}`);
-  if (!res.ok) throw new Error(`Failed to fetch week ${weekId}`);
-  return res.json();
+  return handleJsonResponse(res, `Failed to fetch week ${weekId}`);
 }
 
 export async function deleteWeek(weekId: string): Promise<void> {
   const res = await fetch(`${BASE_URL}/api/weeks/${weekId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Failed to delete week ${weekId}`);
+  return handleEmptyResponse(res, `Failed to delete week ${weekId}`);
 }
 
 export async function fetchWeekProblems(weekId: string): Promise<ProblemInPack[]> {
   const res = await fetch(`${BASE_URL}/api/weeks/${weekId}/problems`);
-  if (!res.ok) throw new Error(`Failed to fetch problems for ${weekId}`);
-  return res.json();
+  return handleJsonResponse(res, `Failed to fetch problems for ${weekId}`);
 }
 
 export async function deleteWeekProblems(weekId: string): Promise<void> {
   const res = await fetch(`${BASE_URL}/api/weeks/${weekId}/problems`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Failed to delete problem pack for ${weekId}`);
+  return handleEmptyResponse(res, `Failed to delete problem pack for ${weekId}`);
 }
 
 export async function deleteSingleProblem(weekId: string, problemNumberOrId: number | string): Promise<void> {
   const res = await fetch(`${BASE_URL}/api/weeks/${weekId}/problems/${problemNumberOrId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Failed to delete problem ${problemNumberOrId}`);
+  return handleEmptyResponse(res, `Failed to delete problem ${problemNumberOrId}`);
 }
 
 export async function seedDefaultPack(weekId: string): Promise<ProblemInPack[]> {
   const res = await fetch(`${BASE_URL}/api/weeks/${weekId}/seed-default-pack`, {
     method: 'POST',
   });
-  if (!res.ok) throw new Error('Failed to seed default problem pack');
-  return res.json();
+  return handleJsonResponse(res, 'Failed to seed default problem pack');
 }
 
 export async function generateProblemPack(
@@ -93,11 +130,7 @@ export async function generateProblemPack(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(options),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to generate problem pack');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to generate problem pack');
 }
 
 export async function generateFromQuestions(
@@ -118,11 +151,7 @@ export async function generateFromQuestions(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(options),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to generate problems from questions');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to generate problems from questions');
 }
 
 export async function validateSubmissionZip(
@@ -140,11 +169,7 @@ export async function validateSubmissionZip(
     method: 'POST',
     body: formData,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to validate ZIP');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to validate ZIP');
 }
 
 export async function startEvaluation(
@@ -163,30 +188,23 @@ export async function startEvaluation(
       section: section || 'Section A',
     }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to start evaluation');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to start evaluation');
 }
 
 export async function fetchEvaluationProgress(jobId: string): Promise<EvaluationJob> {
   const res = await fetch(`${BASE_URL}/api/evaluations/${jobId}/progress`);
-  if (!res.ok) throw new Error('Failed to fetch job progress');
-  return res.json();
+  return handleJsonResponse(res, 'Failed to fetch job progress');
 }
 
 export async function fetchWeekStudents(weekId: string, section?: string): Promise<StudentSummaryItem[]> {
   const query = section && section.toLowerCase() !== 'all' ? `?section=${encodeURIComponent(section)}` : '';
   const res = await fetch(`${BASE_URL}/api/weeks/${weekId}/students${query}`);
-  if (!res.ok) throw new Error('Failed to fetch students list');
-  return res.json();
+  return handleJsonResponse(res, 'Failed to fetch students list');
 }
 
 export async function fetchStudentDetail(weekId: string, studentId: string): Promise<StudentDetailResponse> {
   const res = await fetch(`${BASE_URL}/api/weeks/${weekId}/students/${studentId}`);
-  if (!res.ok) throw new Error(`Failed to fetch student ${studentId}`);
-  return res.json();
+  return handleJsonResponse(res, `Failed to fetch student ${studentId}`);
 }
 
 export async function fetchSubmissionDetail(
@@ -195,15 +213,13 @@ export async function fetchSubmissionDetail(
   problemNumber: number
 ): Promise<StudentSubmissionDetail> {
   const res = await fetch(`${BASE_URL}/api/weeks/${weekId}/students/${studentId}/submissions/${problemNumber}`);
-  if (!res.ok) throw new Error('Failed to fetch submission details');
-  return res.json();
+  return handleJsonResponse(res, 'Failed to fetch submission details');
 }
 
 export async function fetchWeekAnalytics(weekId: string, section?: string): Promise<WeekAnalytics> {
   const query = section && section.toLowerCase() !== 'all' ? `?section=${encodeURIComponent(section)}` : '';
   const res = await fetch(`${BASE_URL}/api/weeks/${weekId}/analytics${query}`);
-  if (!res.ok) throw new Error('Failed to fetch analytics');
-  return res.json();
+  return handleJsonResponse(res, 'Failed to fetch analytics');
 }
 
 export function getExportProblemPackUrl(weekId: string): string {
@@ -230,20 +246,17 @@ export function getExportWeekZipUrl(weekId: string, section?: string): string {
 
 export async function fetchGeminiStatus(): Promise<{ configured: boolean; model: string }> {
   const res = await fetch(`${BASE_URL}/api/problem-engine/gemini-status`);
-  if (!res.ok) throw new Error('Failed to fetch Gemini status');
-  return res.json();
+  return handleJsonResponse(res, 'Failed to fetch Gemini status');
 }
 
 export async function fetchSampleProblemPack(): Promise<ProblemPackModel> {
   const res = await fetch(`${BASE_URL}/api/problem-engine/sample-json`);
-  if (!res.ok) throw new Error('Failed to fetch sample problem pack');
-  return res.json();
+  return handleJsonResponse(res, 'Failed to fetch sample problem pack');
 }
 
 export async function fetchSampleProblemJson(): Promise<ProblemModel> {
   const res = await fetch(`${BASE_URL}/api/problem-engine/sample-problem-json`);
-  if (!res.ok) throw new Error('Failed to fetch sample single problem');
-  return res.json();
+  return handleJsonResponse(res, 'Failed to fetch sample single problem');
 }
 
 
@@ -257,11 +270,7 @@ export async function parseProblemText(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ raw_text: rawText, pack_id: packId, title }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to parse problem text');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to parse problem text');
 }
 
 export async function classifyProblemPack(pack: ProblemPackModel): Promise<{ pack: ProblemPackModel }> {
@@ -270,11 +279,7 @@ export async function classifyProblemPack(pack: ProblemPackModel): Promise<{ pac
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(pack),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to classify problems');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to classify problems');
 }
 
 export async function validateProblemPackJson(
@@ -285,11 +290,7 @@ export async function validateProblemPackJson(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ raw_content: rawContent }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to validate JSON');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to validate JSON');
 }
 
 export async function generateProblemTestCases(
@@ -308,11 +309,7 @@ export async function generateProblemTestCases(
       gemini_api_key: geminiApiKey || undefined,
     }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to generate test cases');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to generate test cases');
 }
 
 export async function generatePackTestCases(
@@ -331,11 +328,7 @@ export async function generatePackTestCases(
       gemini_api_key: geminiApiKey || undefined,
     }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to generate problem pack test cases');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to generate problem pack test cases');
 }
 
 export async function validateTestCases(problem: ProblemModel): Promise<{ problem: ProblemModel }> {
@@ -344,11 +337,7 @@ export async function validateTestCases(problem: ProblemModel): Promise<{ proble
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(problem),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to validate test cases');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to validate test cases');
 }
 
 export async function reviewProblemWithGemini(
@@ -363,11 +352,7 @@ export async function reviewProblemWithGemini(
       gemini_api_key: geminiApiKey || undefined,
     }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Gemini review failed');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Gemini review failed');
 }
 
 export async function deployProblemPackToWeek(
@@ -380,11 +365,7 @@ export async function deployProblemPackToWeek(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pack, replace_all: replaceAll }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to deploy problem pack to week');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Failed to deploy problem pack to week');
 }
 
 export async function runLeetCodeExecution(payload: {
@@ -398,11 +379,7 @@ export async function runLeetCodeExecution(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Code execution failed');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Code execution failed');
 }
 
 export async function verifyProblemTestCases(payload: {
@@ -430,11 +407,7 @@ export async function verifyProblemTestCases(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Testcase verification failed');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Testcase verification failed');
 }
 
 export async function calibrateProblemTestCases(payload: {
@@ -454,11 +427,22 @@ export async function calibrateProblemTestCases(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Testcase calibration failed');
-  }
-  return res.json();
+  return handleJsonResponse(res, 'Testcase calibration failed');
 }
+
+export async function executeRawCode(
+  code: string,
+  stdin: string = '',
+  timeout: number = 5.0
+): Promise<RawExecuteCodeResponse> {
+  const res = await fetch(`${BASE_URL}/api/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, stdin, timeout }),
+  });
+  return handleJsonResponse<RawExecuteCodeResponse>(res, 'Failed to compile and run code');
+}
+
+
 
 

@@ -8,9 +8,10 @@ interface Props {
   onSelectWeek: (weekId: string) => void;
   onOpenNewWeek: () => void;
   onDeleteWeek?: (weekId: string) => void;
+  onOpenTestCompiler?: () => void;
 }
 
-export const DashboardView: React.FC<Props> = ({ onSelectWeek, onOpenNewWeek, onDeleteWeek }) => {
+export const DashboardView: React.FC<Props> = ({ onSelectWeek, onOpenNewWeek, onDeleteWeek, onOpenTestCompiler }) => {
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,6 +78,7 @@ export const DashboardView: React.FC<Props> = ({ onSelectWeek, onOpenNewWeek, on
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div
+            onClick={onOpenTestCompiler}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -85,13 +87,27 @@ export const DashboardView: React.FC<Props> = ({ onSelectWeek, onOpenNewWeek, on
               borderRadius: 'var(--radius-md)',
               backgroundColor: health?.gcc_available ? '#ecfdf5' : '#fef2f2',
               border: `1px solid ${health?.gcc_available ? '#a7f3d0' : '#fecaca'}`,
+              cursor: onOpenTestCompiler ? 'pointer' : 'default',
             }}
+            title={onOpenTestCompiler ? "Click to test compiler sandbox" : undefined}
           >
             <Terminal size={16} color={health?.gcc_available ? '#059669' : '#dc2626'} />
             <div style={{ fontSize: '0.8rem', fontWeight: 600, color: health?.gcc_available ? '#065f46' : '#991b1b' }}>
               GCC: {health?.gcc_available ? 'GCC Ready' : 'Compiler Offline'}
             </div>
           </div>
+
+          {onOpenTestCompiler && (
+            <button
+              onClick={onOpenTestCompiler}
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+              title="Open C Compiler live test sandbox"
+            >
+              <Terminal size={16} color="#4f46e5" />
+              <span>Test Compiler</span>
+            </button>
+          )}
 
           <button onClick={onOpenNewWeek} className="btn btn-primary">
             <Plus size={16} />
