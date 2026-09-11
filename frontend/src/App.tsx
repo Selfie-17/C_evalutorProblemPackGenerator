@@ -144,7 +144,7 @@ export function App() {
                 {health?.gcc_available ? (
                   <>
                     <CheckCircle2 size={12} />
-                    <span>MSYS64 GCC Ready</span>
+                    <span>GCC Ready</span>
                   </>
                 ) : (
                   <>
@@ -163,7 +163,7 @@ export function App() {
                 }}
                 title={health?.gcc_path}
               >
-                {health?.gcc_version ? health.gcc_version.split('\n')[0] : 'gcc.exe'}
+                {health?.gcc_version ? health.gcc_version.split('\n')[0] : 'gcc'}
               </div>
             </div>
           </div>

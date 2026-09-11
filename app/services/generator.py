@@ -28,7 +28,7 @@ from app.models import (
     VerificationReport,
 )
 from app.problems import Problem, TestCase, get_problem, register_problem
-from app.services.compiler import compile_source_file, execute_binary
+from app.services.compiler import compile_source_file, execute_binary, get_executable_extension
 from app.services.judge import normalize_output
 
 logger = logging.getLogger(__name__)
@@ -260,7 +260,7 @@ def verify_reference_solution(
     with tempfile.TemporaryDirectory(prefix="c_verify_ref_") as temp_dir:
         temp_path = Path(temp_dir)
         source_file = temp_path / "reference.c"
-        executable_file = temp_path / "reference.exe"
+        executable_file = temp_path / f"reference{get_executable_extension()}"
 
         # Write C reference solution
         source_file.write_text(problem_schema.reference_solution_c, encoding="utf-8")

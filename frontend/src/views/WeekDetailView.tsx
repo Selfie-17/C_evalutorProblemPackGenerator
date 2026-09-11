@@ -572,7 +572,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
             <div>
               <h3 className="card-title">Laboratory Problem Pack (Week {week.week_number})</h3>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                LeetCode-style C problems with verified reference solutions, test cases, and MSYS64 GCC runner
+                LeetCode-style C problems with verified reference solutions, test cases, and GCC runner
               </p>
             </div>
 
@@ -1168,7 +1168,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
               <div style={{ backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', padding: '16px', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#065f46', fontWeight: 600 }}>
                   <CheckCircle2 size={20} />
-                  <span>Evaluation finished successfully! All submission records and compiler diagnostics stored in SQLite.</span>
+                  <span>Evaluation finished successfully! All submission records and compiler diagnostics stored in database.</span>
                 </div>
                 <button onClick={() => setActiveTab('students')} className="btn btn-primary btn-sm">
                   <span>View Student Results</span>

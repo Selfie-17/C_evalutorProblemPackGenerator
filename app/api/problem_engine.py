@@ -14,7 +14,12 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.config import GEMINI_API_KEY, VIVA_GEMINI_MODEL
-from app.services.compiler import compile_and_run_c, compile_source_file, execute_binary
+from app.services.compiler import (
+    compile_and_run_c,
+    compile_source_file,
+    execute_binary,
+    get_executable_extension,
+)
 from app.services.judge import normalize_output, run_custom_testcases
 from app.database.db import get_problem_by_id, save_problem
 from app.models import CustomTestCase, TestCaseSchema
@@ -333,7 +338,7 @@ def verify_problem_testcases(request: VerifyProblemTestCasesRequest) -> Dict[str
 
     with tempfile.TemporaryDirectory(prefix="c_verify_tc_") as temp_dir:
         src_path = Path(temp_dir) / "ref.c"
-        exe_path = Path(temp_dir) / "ref.exe"
+        exe_path = Path(temp_dir) / f"ref{get_executable_extension()}"
         src_path.write_text(code, encoding="utf-8")
 
         is_compiled, comp_out, exit_code = compile_source_file(src_path, exe_path, temp_dir)
@@ -418,7 +423,7 @@ def calibrate_problem_testcases(request: CalibrateProblemTestCasesRequest) -> Di
 
     with tempfile.TemporaryDirectory(prefix="c_calib_tc_") as temp_dir:
         src_path = Path(temp_dir) / "ref.c"
-        exe_path = Path(temp_dir) / "ref.exe"
+        exe_path = Path(temp_dir) / f"ref{get_executable_extension()}"
         src_path.write_text(code, encoding="utf-8")
 
         is_compiled, comp_out, _ = compile_source_file(src_path, exe_path, temp_dir)

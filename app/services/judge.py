@@ -16,8 +16,14 @@ from app.models import (
     TestCaseExecutionResult,
     TestCaseSummary,
 )
+from app.config import MAX_TIMEOUT_SECONDS
 from app.problems import TestCase, get_problem
-from app.services.compiler import compile_c_source, compile_source_file, execute_binary
+from app.services.compiler import (
+    compile_c_source,
+    compile_source_file,
+    execute_binary,
+    get_executable_extension,
+)
 
 
 def normalize_output(text: str) -> str:
@@ -37,19 +43,20 @@ def evaluate_c_submission(
 ) -> StandardizedJudgeResult:
     """
     Standardized C submission evaluator:
-    1. Compiles C source once using MSYS64 GCC.
+    1. Compiles C source once using GCC.
     2. Parses structured compiler diagnostics (line, column, severity, message) and captures raw output.
     3. If compilation fails, returns COMPILATION_ERROR verdict immediately.
     4. Executes binary sequentially against all test cases.
     5. Computes exact passed/failed test cases, total/max execution times, and per-testcase details.
     """
     total_cases = len(test_cases)
-    effective_timeout = max(0.1, min(time_limit, 15.0))
+    effective_timeout = max(0.1, min(time_limit, MAX_TIMEOUT_SECONDS))
+    exe_suffix = get_executable_extension()
 
     with tempfile.TemporaryDirectory(prefix="c_eval_") as temp_dir:
         temp_path = Path(temp_dir)
         source_file = temp_path / "solution.c"
-        executable_file = temp_path / "solution.exe"
+        executable_file = temp_path / f"solution{exe_suffix}"
 
         # 1. Write source code
         try:
@@ -252,13 +259,14 @@ def run_custom_testcases(
     Compile C code once and execute against a user-provided list of custom test cases.
     Returns detailed results for each individual test case.
     """
-    effective_timeout = max(0.1, min(timeout_seconds, 15.0))
+    effective_timeout = max(0.1, min(timeout_seconds, MAX_TIMEOUT_SECONDS))
     total_cases = len(test_cases)
+    exe_suffix = get_executable_extension()
 
     with tempfile.TemporaryDirectory(prefix="c_custom_test_") as temp_dir:
         temp_path = Path(temp_dir)
         source_file = temp_path / "solution.c"
-        executable_file = temp_path / "solution.exe"
+        executable_file = temp_path / f"solution{exe_suffix}"
 
         # 1. Write source code
         try:

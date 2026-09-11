@@ -31,21 +31,41 @@ from app.services.generator import check_llm_status, generate_problem_from_llm
 from app.services.judge import judge_solution, run_custom_testcases
 from app.services.viva import generate_viva_questions
 
+from app.config import FRONTEND_URL
+
 # Initialize database schema on startup
 init_db()
 
 app = FastAPI(
     title="C Lab Evaluation Platform & LeetCode Judge API",
-    description="A high-performance C compilation, execution, batch lab evaluation, problem pack generator, and analytics engine powered by MSYS64 GCC and SQLite.",
+    description="A high-performance C compilation, execution, batch lab evaluation, problem pack generator, and analytics engine powered by Linux GCC and SQLite/PostgreSQL.",
     version="4.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
-# Enable CORS for frontend clients
+# Configure CORS origins (supporting local dev and configured Vercel frontend)
+cors_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+if FRONTEND_URL:
+    for origin in FRONTEND_URL.split(","):
+        origin_clean = origin.strip().rstrip("/")
+        if origin_clean and origin_clean not in cors_origins:
+            cors_origins.append(origin_clean)
+else:
+    cors_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app" if FRONTEND_URL else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

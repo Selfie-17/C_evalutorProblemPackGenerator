@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: c_eval_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DATABASE_URL=${DATABASE_URL:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - FRONTEND_URL=http://localhost:5173,http://localhost:3000
+      - CC=gcc
+      - CFLAGS=-std=c11 -O2 -pipe
+      - MAX_EVALUATION_WORKERS=3
+      - DEFAULT_EXECUTION_TIMEOUT=5
+      - MAX_EXECUTION_TIMEOUT=15
+    volumes:
+      - c_eval_data:/app/data
+
+volumes:
+  c_eval_data:

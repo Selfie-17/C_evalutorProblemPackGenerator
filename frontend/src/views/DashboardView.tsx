@@ -89,7 +89,7 @@ export const DashboardView: React.FC<Props> = ({ onSelectWeek, onOpenNewWeek, on
           >
             <Terminal size={16} color={health?.gcc_available ? '#059669' : '#dc2626'} />
             <div style={{ fontSize: '0.8rem', fontWeight: 600, color: health?.gcc_available ? '#065f46' : '#991b1b' }}>
-              GCC: {health?.gcc_available ? 'MSYS64 Ready' : 'Compiler Offline'}
+              GCC: {health?.gcc_available ? 'GCC Ready' : 'Compiler Offline'}
             </div>
           </div>
 

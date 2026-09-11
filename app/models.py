@@ -389,6 +389,9 @@ class HealthResponse(BaseModel):
     gcc_path: str
     gcc_available: bool
     gcc_version: Optional[str] = None
+    compiler: Optional[str] = "gcc"
+    available: Optional[bool] = None
+    version: Optional[str] = None
 
 
 class LLMStatusResponse(BaseModel):

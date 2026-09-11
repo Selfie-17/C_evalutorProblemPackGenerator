@@ -1,12 +1,14 @@
 import json
+import logging
 import os
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List, Optional, Union
 
-from app.config import DATA_DIR
+from app.config import DATA_DIR, DATABASE_URL
 from app.models import (
     CompilationDiagnostic,
     CompilationResult,
@@ -20,7 +22,111 @@ from app.models import (
     WeekResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 DB_PATH: Path = DATA_DIR / "c_eval.db"
+
+# Determine backend engine: PostgreSQL (Aiven/cloud) or SQLite (local development)
+_is_postgres: bool = False
+_pg_engine = None
+
+if DATABASE_URL:
+    url_lower = DATABASE_URL.lower()
+    if url_lower.startswith("postgres://") or url_lower.startswith("postgresql://"):
+        _is_postgres = True
+        normalized_url = DATABASE_URL
+        if normalized_url.startswith("postgres://"):
+            normalized_url = "postgresql://" + normalized_url[len("postgres://"):]
+
+        try:
+            from sqlalchemy import create_engine
+
+            _pg_engine = create_engine(
+                normalized_url,
+                pool_pre_ping=True,
+                pool_recycle=300,
+                pool_size=10,
+                max_overflow=20,
+            )
+            logger.info("Configured PostgreSQL database backend with connection pooling.")
+        except Exception as e:
+            logger.error(f"Failed to initialize PostgreSQL engine with URL: {e}. Falling back to SQLite.")
+            _is_postgres = False
+            _pg_engine = None
+
+
+def is_postgres_backend() -> bool:
+    """Return True if connected to a remote PostgreSQL database."""
+    return _is_postgres and (_pg_engine is not None)
+
+
+class PgRow(dict):
+    """Dictionary subclass providing dict-like access for PostgreSQL query rows."""
+
+    def __getitem__(self, key: str) -> Any:
+        return super().get(key)
+
+
+class PgCursorWrapper:
+    """Wraps PostgreSQL cursor to return PgRow objects with dictionary access."""
+
+    def __init__(self, cursor: Any):
+        self._cursor = cursor
+        self.rowcount = cursor.rowcount
+
+    def fetchone(self) -> Optional[PgRow]:
+        row = self._cursor.fetchone()
+        if row is None:
+            return None
+        if isinstance(row, dict):
+            return PgRow(row)
+        return PgRow(dict(row))
+
+    def fetchall(self) -> List[PgRow]:
+        rows = self._cursor.fetchall()
+        if not rows:
+            return []
+        return [PgRow(r if isinstance(r, dict) else dict(r)) for r in rows]
+
+
+class PgConnectionWrapper:
+    """Adapts PostgreSQL raw connection to match sqlite3.Connection transactional interface."""
+
+    def __init__(self, raw_conn: Any):
+        self._conn = raw_conn
+
+    def execute(self, sql: str, params: Optional[Union[tuple, list]] = None) -> PgCursorWrapper:
+        translated_sql = re.sub(r"\?", "%s", sql)
+        try:
+            from psycopg.rows import dict_row
+
+            cursor = self._conn.cursor(row_factory=dict_row)
+        except Exception:
+            try:
+                import psycopg2.extras
+
+                cursor = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            except Exception:
+                cursor = self._conn.cursor()
+
+        if params is not None:
+            cursor.execute(translated_sql, tuple(params))
+        else:
+            cursor.execute(translated_sql)
+        return PgCursorWrapper(cursor)
+
+    def executescript(self, script: str) -> None:
+        cursor = self._conn.cursor()
+        cursor.execute(script)
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+    def rollback(self) -> None:
+        self._conn.rollback()
+
+    def close(self) -> None:
+        self._conn.close()
 
 
 def get_iso_now() -> str:
@@ -29,24 +135,40 @@ def get_iso_now() -> str:
 
 
 @contextmanager
-def get_db_connection() -> Generator[sqlite3.Connection, None, None]:
-    """Provide a transactional scope around SQLite operations with foreign keys and WAL mode."""
-    conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON;")
-    conn.execute("PRAGMA journal_mode = WAL;")
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+def get_db_connection() -> Generator[Any, None, None]:
+    """
+    Provide transactional scope:
+    - On SQLite (local): connects to c_eval.db with WAL mode and foreign keys enabled.
+    - On PostgreSQL (Aiven production): borrows connection from connection pool.
+    """
+    if not is_postgres_backend():
+        conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("PRAGMA journal_mode = WAL;")
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+    else:
+        raw_conn = _pg_engine.raw_connection()
+        wrapper = PgConnectionWrapper(raw_conn)
+        try:
+            yield wrapper
+            wrapper.commit()
+        except Exception:
+            wrapper.rollback()
+            raise
+        finally:
+            wrapper.close()
 
 
 def init_db() -> None:
-    """Initialize the SQLite database schema if not already created."""
+    """Initialize the database schema (compatible with both SQLite and PostgreSQL)."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with get_db_connection() as conn:
         conn.executescript("""
@@ -140,14 +262,17 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_students_week ON students(week_id);
         """)
 
-        # Execute safe migrations for existing tables before indexing new columns
+        # Safe migrations for existing schemas
         for table, col_def in [
             ("students", "section TEXT DEFAULT 'Section A'"),
             ("submissions", "section TEXT DEFAULT 'Section A'"),
             ("evaluation_jobs", "section TEXT DEFAULT 'Section A'"),
         ]:
             try:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_def}")
+                if is_postgres_backend():
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_def}")
+                else:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_def}")
             except Exception:
                 pass
 
@@ -302,18 +427,37 @@ def delete_week(week_id: str) -> bool:
 # ==============================================================================
 
 def save_problem(problem: ProblemInPack) -> ProblemInPack:
-    """Insert or replace a problem in a week's problem pack."""
+    """Insert or update a problem in a week's problem pack using ANSI ON CONFLICT."""
     now = get_iso_now()
     with get_db_connection() as conn:
         conn.execute(
             """
-            INSERT OR REPLACE INTO problems (
+            INSERT INTO problems (
                 id, week_id, number, title, slug, description,
                 input_format, output_format, constraints_json, difficulty,
                 topics_json, hints_json, time_limit, public_test_cases_json,
                 hidden_test_cases_json, reference_solution_c, is_verified,
                 verification_report_json, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                week_id = EXCLUDED.week_id,
+                number = EXCLUDED.number,
+                title = EXCLUDED.title,
+                slug = EXCLUDED.slug,
+                description = EXCLUDED.description,
+                input_format = EXCLUDED.input_format,
+                output_format = EXCLUDED.output_format,
+                constraints_json = EXCLUDED.constraints_json,
+                difficulty = EXCLUDED.difficulty,
+                topics_json = EXCLUDED.topics_json,
+                hints_json = EXCLUDED.hints_json,
+                time_limit = EXCLUDED.time_limit,
+                public_test_cases_json = EXCLUDED.public_test_cases_json,
+                hidden_test_cases_json = EXCLUDED.hidden_test_cases_json,
+                reference_solution_c = EXCLUDED.reference_solution_c,
+                is_verified = EXCLUDED.is_verified,
+                verification_report_json = EXCLUDED.verification_report_json,
+                created_at = EXCLUDED.created_at
             """,
             (
                 problem.id,
@@ -359,7 +503,7 @@ def get_week_problems(week_id: str) -> List[ProblemInPack]:
         return [_row_to_problem(r) for r in rows]
 
 
-def _row_to_problem(row: sqlite3.Row) -> ProblemInPack:
+def _row_to_problem(row: Any) -> ProblemInPack:
     """Helper to convert a database row to a ProblemInPack model."""
     verif_json = row["verification_report_json"]
     verif_report = VerificationReport.model_validate_json(verif_json) if verif_json else None
@@ -394,7 +538,6 @@ def delete_week_problems(week_id: str) -> int:
     with get_db_connection() as conn:
         cursor = conn.execute("DELETE FROM problems WHERE week_id = ?", (week_id,))
         count = cursor.rowcount
-        # Also update week status back to draft if it was ready
         conn.execute(
             "UPDATE weeks SET status = 'draft', updated_at = ? WHERE id = ? AND status = 'ready'",
             (get_iso_now(), week_id),
@@ -431,7 +574,7 @@ def register_student(week_id: str, student_id: str, name: str = "", section: str
             """
             INSERT INTO students (id, week_id, name, section, created_at)
             VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(week_id, id) DO UPDATE SET section = excluded.section
+            ON CONFLICT(week_id, id) DO UPDATE SET section = EXCLUDED.section
             """,
             (student_id, week_id, name, sec, now),
         )
@@ -591,19 +734,39 @@ def save_submission(
     test_results: List[TestCaseExecutionDetail],
     section: str = "Section A",
 ) -> None:
-    """Save an evaluated student C program submission into SQLite."""
+    """Save an evaluated student C program submission using ANSI ON CONFLICT."""
     now = get_iso_now()
     sec = section.strip() if section and section.strip() else "Section A"
     with get_db_connection() as conn:
         conn.execute(
             """
-            INSERT OR REPLACE INTO submissions (
+            INSERT INTO submissions (
                 id, job_id, week_id, student_id, problem_id, problem_number,
                 source_file, source_code, verdict, passed_test_cases,
                 total_test_cases, failed_test_case_number, total_time_ms,
                 max_time_ms, compilation_success, compilation_output,
                 compilation_errors_json, test_results_json, submitted_at, section
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                job_id = EXCLUDED.job_id,
+                week_id = EXCLUDED.week_id,
+                student_id = EXCLUDED.student_id,
+                problem_id = EXCLUDED.problem_id,
+                problem_number = EXCLUDED.problem_number,
+                source_file = EXCLUDED.source_file,
+                source_code = EXCLUDED.source_code,
+                verdict = EXCLUDED.verdict,
+                passed_test_cases = EXCLUDED.passed_test_cases,
+                total_test_cases = EXCLUDED.total_test_cases,
+                failed_test_case_number = EXCLUDED.failed_test_case_number,
+                total_time_ms = EXCLUDED.total_time_ms,
+                max_time_ms = EXCLUDED.max_time_ms,
+                compilation_success = EXCLUDED.compilation_success,
+                compilation_output = EXCLUDED.compilation_output,
+                compilation_errors_json = EXCLUDED.compilation_errors_json,
+                test_results_json = EXCLUDED.test_results_json,
+                submitted_at = EXCLUDED.submitted_at,
+                section = EXCLUDED.section
             """,
             (
                 submission_id,
@@ -724,7 +887,7 @@ def list_week_student_summaries(week_id: str, section: Optional[str] = None) -> 
     return [get_student_summary(week_id, sid) for sid in student_ids]
 
 
-def _row_to_submission_detail(row: sqlite3.Row) -> StudentSubmissionDetail:
+def _row_to_submission_detail(row: Any) -> StudentSubmissionDetail:
     """Helper to convert submission row to StudentSubmissionDetail."""
     errors_raw = json.loads(row["compilation_errors_json"] or "[]")
     errors = [CompilationDiagnostic(**e) for e in errors_raw]

@@ -14,7 +14,7 @@ import {
   ZipValidationReport,
 } from '../types';
 
-const BASE_URL = '';
+const BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
 export async function fetchHealth(): Promise<HealthStatus> {
   const res = await fetch(`${BASE_URL}/health`);
@@ -207,21 +207,21 @@ export async function fetchWeekAnalytics(weekId: string, section?: string): Prom
 }
 
 export function getExportProblemPackUrl(weekId: string): string {
-  return `/api/weeks/${weekId}/export-pack`;
+  return `${BASE_URL}/api/weeks/${weekId}/export-pack`;
 }
 
 export function getExportStudentJsonUrl(weekId: string, studentId: string): string {
-  return `/api/weeks/${weekId}/students/${studentId}/export`;
+  return `${BASE_URL}/api/weeks/${weekId}/students/${studentId}/export`;
 }
 
 export function getExportWeekJsonUrl(weekId: string, section?: string): string {
   const query = section && section.toLowerCase() !== 'all' ? `?section=${encodeURIComponent(section)}` : '';
-  return `/api/weeks/${weekId}/export/json${query}`;
+  return `${BASE_URL}/api/weeks/${weekId}/export/json${query}`;
 }
 
 export function getExportWeekZipUrl(weekId: string, section?: string): string {
   const query = section && section.toLowerCase() !== 'all' ? `?section=${encodeURIComponent(section)}` : '';
-  return `/api/weeks/${weekId}/export/zip${query}`;
+  return `${BASE_URL}/api/weeks/${weekId}/export/zip${query}`;
 }
 
 // ==============================================================================
