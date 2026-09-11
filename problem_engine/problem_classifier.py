@@ -6,7 +6,7 @@ Extracts problem categories, concepts, language constructs, constraints, and tes
 import json
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import httpx
 
 from app.config import (
