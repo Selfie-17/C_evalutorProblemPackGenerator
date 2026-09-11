@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Play,
@@ -13,6 +13,12 @@ import {
   Cpu,
   Code2,
   FileText,
+  Trash2,
+  Zap,
+  Sparkles,
+  Sliders,
+  ChevronRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { executeRawCode, fetchHealth } from '../services/api';
 import { HealthStatus, RawExecuteCodeResponse } from '../types';
@@ -25,8 +31,9 @@ interface Props {
 
 interface PresetOption {
   id: string;
+  badge: string;
   name: string;
-  description: string;
+  tagline: string;
   code: string;
   stdin: string;
 }
@@ -34,98 +41,124 @@ interface PresetOption {
 const PRESETS: PresetOption[] = [
   {
     id: 'hello',
-    name: '1. Hello World & Math',
-    description: 'Verify C11 compilation and basic integer arithmetic',
-    code: `#include <stdio.h>
+    badge: '⚡ Basic',
+    name: 'C11 Hello & Math',
+    tagline: 'Standard I/O and integer arithmetic in GCC C11',
+    code: `// C Lab Evaluation Platform — Compiler Verification Test
+// Flags: -std=c11 -O2 -pipe
+#include <stdio.h>
 
-int main() {
-    printf("=========================================\\n");
-    printf(" C Compiler Diagnostic & Sandbox Test\\n");
-    printf(" Standard: C11 (-std=c11 -O2 -pipe)\\n");
-    printf("=========================================\\n\\n");
-    
+int main(void) {
+    printf("=============================================\\n");
+    printf("   C Compiler Sandbox Diagnostic Online\\n");
+    printf("   Toolchain: GNU C11 Compiler (-O2)\\n");
+    printf("=============================================\\n\\n");
+
     int a = 25, b = 17;
-    printf("Math Check: %d + %d = %d\\n", a, b, a + b);
-    printf("Compiler Status: SUCCESS (Operational)\\n");
+    int sum = a + b;
+    int product = a * b;
+
+    printf("[1] Addition Test:        %d + %d = %d\\n", a, b, sum);
+    printf("[2] Multiplication Test:  %d * %d = %d\\n", a, b, product);
+    printf("[3] Status:               GCC ENGINE OPERATIONAL ✔\\n");
+
     return 0;
 }`,
     stdin: '',
   },
   {
     id: 'stdin',
-    name: '2. Standard Input (scanf)',
-    description: 'Test interactive stdin buffering and multi-value scanning',
-    code: `#include <stdio.h>
+    badge: '📥 Input',
+    name: 'Interactive scanf()',
+    tagline: 'Buffered standard input stream verification',
+    code: `// Interactive Stdin Test
+#include <stdio.h>
 
-int main() {
+int main(void) {
     int x, y;
-    printf("Reading two integers from standard input...\\n");
+    printf("Waiting for standard input tokens (x, y)...\\n");
+
     if (scanf("%d %d", &x, &y) == 2) {
-        printf("Received: x = %d, y = %d\\n", x, y);
-        printf("Sum: %d\\n", x + y);
-        printf("Product: %d\\n", x * y);
+        printf("-> Successfully read inputs: x = %d, y = %d\\n", x, y);
+        printf("-> Calculated Sum:     %d\\n", x + y);
+        printf("-> Calculated Product: %d\\n", x * y);
     } else {
-        printf("Error: Could not read two integers from input.\\n");
+        fprintf(stderr, "Error: Failed to parse two integers from stdin.\\n");
         return 1;
     }
+
     return 0;
 }`,
     stdin: '42 58',
   },
   {
     id: 'primes',
-    name: '3. Loops & Algorithms',
-    description: 'Calculate prime numbers to verify CPU execution speed',
-    code: `#include <stdio.h>
+    badge: '🔄 Algorithm',
+    name: 'Prime Sieve & Speed',
+    tagline: 'Loop branching and CPU execution cycle check',
+    code: `// Prime Number Sieve Benchmark
+#include <stdio.h>
+#include <stdbool.h>
 
-int is_prime(int n) {
-    if (n <= 1) return 0;
+bool is_prime(int n) {
+    if (n <= 1) return false;
     for (int i = 2; i * i <= n; i++) {
-        if (n % i == 0) return 0;
+        if (n % i == 0) return false;
     }
-    return 1;
+    return true;
 }
 
-int main() {
-    printf("Prime numbers up to 50:\\n");
+int main(void) {
+    printf("Scanning prime integers up to 50:\\n");
     int count = 0;
+
     for (int i = 2; i <= 50; i++) {
         if (is_prime(i)) {
             printf("%d ", i);
             count++;
         }
     }
-    printf("\\nTotal primes found: %d\\n", count);
+
+    printf("\\n\\n-> Total primes found: %d\\n", count);
+    printf("-> Execution benchmark passed cleanly.\\n");
     return 0;
 }`,
     stdin: '',
   },
   {
     id: 'syntax_error',
-    name: '4. Syntax Error Test',
-    description: 'Test compiler diagnostic parser with an intentional error',
-    code: `#include <stdio.h>
+    badge: '⚠️ Diagnostics',
+    name: 'Syntax Error Test',
+    tagline: 'Verifies structured GCC diagnostic parser & line reporting',
+    code: `// Intentional Syntax Error Test
+#include <stdio.h>
 
-int main() {
-    // Intentional missing semicolon below:
-    int number = 42
-    printf("Value: %d\\n", number);
+int main(void) {
+    // Missing semicolon on line below to trigger compiler diagnostic:
+    int calculated_val = 100
+    printf("Value: %d\\n", calculated_val);
     return 0;
 }`,
     stdin: '',
   },
   {
     id: 'runtime_error',
-    name: '5. Runtime Error Test',
-    description: 'Test exception capture with intentional division by zero',
-    code: `#include <stdio.h>
+    badge: '💥 Exception',
+    name: 'Runtime Fault (SIGFPE)',
+    tagline: 'Verifies process exit status and runtime signal trap',
+    code: `// Intentional Runtime Exception Test
+#include <stdio.h>
+#include <stdlib.h>
 
-int main() {
-    printf("Testing runtime exception handling...\\n");
+int main(void) {
+    printf("Testing runtime exception signal handling...\\n");
+
     int numerator = 100;
     int denominator = 0;
-    // Division by zero causes SIGFPE runtime fault:
+
+    // Intentional division by zero causes SIGFPE:
     int result = numerator / denominator;
+
     printf("Result = %d\\n", result);
     return 0;
 }`,
@@ -137,13 +170,19 @@ export const TestCompilerModal: React.FC<Props> = ({ isOpen, onClose, initialHea
   const [selectedPreset, setSelectedPreset] = useState<string>('hello');
   const [code, setCode] = useState<string>(PRESETS[0].code);
   const [stdin, setStdin] = useState<string>(PRESETS[0].stdin);
+  const [activeEditorTab, setActiveEditorTab] = useState<'code' | 'stdin'>('code');
+  const [activeTerminalTab, setActiveTerminalTab] = useState<'stdout' | 'diagnostics' | 'raw'>('stdout');
+
   const [running, setRunning] = useState<boolean>(false);
   const [healthChecking, setHealthChecking] = useState<boolean>(false);
   const [health, setHealth] = useState<HealthStatus | null>(initialHealth || null);
   const [result, setResult] = useState<RawExecuteCodeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
-  const [showStdin, setShowStdin] = useState<boolean>(false);
+  const [lastRunAt, setLastRunAt] = useState<string | null>(null);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (initialHealth) {
@@ -165,9 +204,11 @@ export const TestCompilerModal: React.FC<Props> = ({ isOpen, onClose, initialHea
     if (p) {
       setCode(p.code);
       setStdin(p.stdin);
-      if (p.stdin) setShowStdin(true);
       setResult(null);
       setError(null);
+      if (p.stdin) {
+        setActiveEditorTab('code');
+      }
     }
   };
 
@@ -191,11 +232,18 @@ export const TestCompilerModal: React.FC<Props> = ({ isOpen, onClose, initialHea
 
     setRunning(true);
     setError(null);
-    setResult(null);
 
     try {
       const res = await executeRawCode(code, stdin, 5.0);
       setResult(res);
+      setLastRunAt(new Date().toLocaleTimeString());
+
+      // Auto-switch terminal tab to diagnostics if compilation error
+      if (res.status === 'compilation_error') {
+        setActiveTerminalTab('diagnostics');
+      } else {
+        setActiveTerminalTab('stdout');
+      }
     } catch (err: any) {
       setError(err.message || 'Execution request failed.');
     } finally {
@@ -204,11 +252,25 @@ export const TestCompilerModal: React.FC<Props> = ({ isOpen, onClose, initialHea
   };
 
   const handleCopyOutput = () => {
-    const textToCopy = result?.stdout || result?.compilation_output || '';
+    let textToCopy = '';
+    if (activeTerminalTab === 'stdout') {
+      textToCopy = result?.stdout || '';
+    } else if (activeTerminalTab === 'diagnostics') {
+      textToCopy = result?.compilation_output || '';
+    } else {
+      textToCopy = `${result?.compilation_output || ''}\n${result?.stdout || ''}\n${result?.stderr || ''}`;
+    }
+
     if (!textToCopy) return;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleScrollSync = () => {
+    if (textareaRef.current && gutterRef.current) {
+      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -218,444 +280,633 @@ export const TestCompilerModal: React.FC<Props> = ({ isOpen, onClose, initialHea
     }
   };
 
+  const lines = code.split('\n');
+
   return (
-    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 120 }}>
+    <div
+      className="modal-backdrop"
+      onClick={onClose}
+      style={{
+        zIndex: 120,
+        backgroundColor: 'rgba(5, 8, 18, 0.78)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+      }}
+    >
       <div
-        className="modal-card"
         style={{
-          maxWidth: '960px',
-          width: '95vw',
-          height: '90vh',
+          maxWidth: '1220px',
+          width: '96vw',
+          height: '92vh',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: '#ffffff',
+          backgroundColor: '#0c1017',
           borderRadius: '16px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          boxShadow: '0 25px 70px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 50px rgba(99, 102, 241, 0.15)',
           overflow: 'hidden',
+          color: '#f8fafc',
+          fontFamily: 'var(--font-sans)',
         }}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        {/* Header */}
+        {/* =================================================================== */}
+        {/* 1. IDE TOP CHROME / WINDOW TITLEBAR                                 */}
+        {/* =================================================================== */}
         <div
-          className="modal-header"
           style={{
-            padding: '16px 24px',
-            backgroundColor: '#0f172a',
-            color: 'white',
-            borderBottom: '1px solid #1e293b',
+            height: '46px',
+            backgroundColor: '#090d14',
+            borderBottom: '1px solid #1e2638',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            padding: '0 16px',
+            userSelect: 'none',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                border: '1px solid rgba(99, 102, 241, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#818cf8',
-              }}
-            >
-              <Terminal size={20} />
+          {/* Left: Window Traffic Lights & IDE Title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
+              <div style={{ width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+              <div style={{ width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#10b981' }} />
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
-                  C Compiler Live Test & Diagnostic Sandbox
-                </h3>
-                {health && (
-                  <span
-                    style={{
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      backgroundColor: health.gcc_available ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                      color: health.gcc_available ? '#34d399' : '#f87171',
-                      border: `1px solid ${health.gcc_available ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    {health.gcc_available ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
-                    {health.gcc_available ? 'GCC Active' : 'Compiler Offline'}
-                  </span>
-                )}
+
+            <div style={{ height: '14px', width: '1px', backgroundColor: '#1e293b' }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '5px',
+                  backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                  border: '1px solid rgba(99, 102, 241, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#818cf8',
+                }}
+              >
+                <Terminal size={13} />
               </div>
-              <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
-                Compile and execute arbitrary C code directly via server GCC toolchain
-              </p>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, letterSpacing: '-0.01em', color: '#f1f5f9' }}>
+                C Compiler Studio
+              </span>
+              <span style={{ fontSize: '0.74rem', color: '#475569' }}>•</span>
+              <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: '#94a3b8' }}>
+                main.c
+              </span>
             </div>
           </div>
 
+          {/* Center: Live Server Toolchain Badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                padding: '3px 10px',
+                borderRadius: '20px',
+                backgroundColor: health?.gcc_available ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                border: `1px solid ${health?.gcc_available ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                fontSize: '0.73rem',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: health?.gcc_available ? '#10b981' : '#ef4444',
+                  boxShadow: health?.gcc_available ? '0 0 8px #10b981' : '0 0 8px #ef4444',
+                }}
+              />
+              <span style={{ color: health?.gcc_available ? '#34d399' : '#f87171', fontWeight: 600 }}>
+                {health?.gcc_available ? 'GCC Engine Online' : 'Compiler Offline'}
+              </span>
+              <span style={{ color: '#475569' }}>|</span>
+              <span style={{ color: '#cbd5e1' }}>
+                {health?.gcc_version ? health.gcc_version.split('\n')[0].replace('gcc (Debian ', 'gcc-').replace(')', '') : 'gcc 14.2'}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               onClick={handleRefreshHealth}
               disabled={healthChecking}
-              className="btn btn-secondary btn-sm"
-              title="Ping backend compiler health"
               style={{
-                backgroundColor: '#1e293b',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 color: '#cbd5e1',
-                borderColor: '#334155',
-                fontSize: '0.76rem',
-                padding: '6px 10px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                fontSize: '0.74rem',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
+              title="Ping backend GCC health"
             >
-              <RefreshCw size={13} className={healthChecking ? 'spin' : ''} />
-              <span>Ping Status</span>
+              <RefreshCw size={12} className={healthChecking ? 'spin' : ''} />
+              <span>Ping</span>
             </button>
 
             <button
               onClick={onClose}
-              className="btn btn-secondary btn-sm"
               style={{
-                backgroundColor: '#1e293b',
-                color: '#cbd5e1',
-                borderColor: '#334155',
-                padding: '6px 8px',
+                background: 'transparent',
+                border: 'none',
+                color: '#94a3b8',
+                padding: '4px',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
               }}
+              title="Close window"
             >
               <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* Compiler System Info Ribbon */}
+        {/* =================================================================== */}
+        {/* 2. SUB-HEADER TOOLBAR: PRESET SELECTOR & COMPILER FLAGS             */}
+        {/* =================================================================== */}
         <div
           style={{
-            backgroundColor: '#1e293b',
-            padding: '8px 24px',
-            borderBottom: '1px solid #334155',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '0.75rem',
-            color: '#94a3b8',
-            fontFamily: 'var(--font-mono)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Cpu size={13} color="#818cf8" />
-              <span>GCC Path: <strong style={{ color: '#e2e8f0' }}>{health?.gcc_path || 'gcc'}</strong></span>
-            </span>
-            <span>
-              Flags: <strong style={{ color: '#e2e8f0' }}>-std=c11 -O2 -pipe</strong>
-            </span>
-          </div>
-
-          <div>
-            <span>Version: <strong style={{ color: '#e2e8f0' }}>{health?.gcc_version ? health.gcc_version.split('\n')[0] : 'Detecting...'}</strong></span>
-          </div>
-        </div>
-
-        {/* Preset Selector Bar */}
-        <div
-          style={{
-            padding: '10px 24px',
-            backgroundColor: '#f8fafc',
-            borderBottom: '1px solid #e2e8f0',
+            backgroundColor: '#101622',
+            padding: '8px 16px',
+            borderBottom: '1px solid #1e2638',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '12px',
+            flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Quick Presets:</span>
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => handleSelectPreset(preset.id)}
-                style={{
-                  fontSize: '0.76rem',
-                  fontWeight: selectedPreset === preset.id ? 700 : 500,
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: `1px solid ${selectedPreset === preset.id ? '#4f46e5' : '#cbd5e1'}`,
-                  backgroundColor: selectedPreset === preset.id ? '#eef2ff' : '#ffffff',
-                  color: selectedPreset === preset.id ? '#4338ca' : '#475569',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {preset.name}
-              </button>
-            ))}
+          {/* Presets Chips */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: '4px' }}>
+              Presets:
+            </span>
+
+            {PRESETS.map((preset) => {
+              const isActive = selectedPreset === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() => handleSelectPreset(preset.id)}
+                  style={{
+                    backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+                    border: `1px solid ${isActive ? '#6366f1' : 'rgba(255, 255, 255, 0.08)'}`,
+                    color: isActive ? '#c7d2fe' : '#94a3b8',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '0.74rem',
+                    fontWeight: isActive ? 600 : 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title={preset.tagline}
+                >
+                  <span>{preset.badge}</span>
+                  <span>{preset.name}</span>
+                </button>
+              );
+            })}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button
-              onClick={() => setShowStdin(!showStdin)}
+          {/* Compiler Flags Pill */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span
               style={{
-                fontSize: '0.76rem',
-                fontWeight: 600,
-                color: showStdin ? '#4f46e5' : '#64748b',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.7rem',
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                color: '#38bdf8',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
               }}
             >
-              <FileText size={14} />
-              <span>{showStdin ? 'Hide Stdin' : 'Custom Stdin'} {stdin ? '●' : ''}</span>
-            </button>
+              -std=c11 -O2 -pipe
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.7rem',
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                color: '#a78bfa',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                border: '1px solid rgba(167, 139, 250, 0.2)',
+              }}
+            >
+              timeout: 5.0s
+            </span>
           </div>
         </div>
 
-        {/* Modal Body: Split Editor & Output */}
+        {/* =================================================================== */}
+        {/* 3. MAIN WORKSPACE: SPLIT CODE EDITOR (LEFT) & TERMINAL (RIGHT)      */}
+        {/* =================================================================== */}
         <div
           style={{
             flex: 1,
             display: 'grid',
             gridTemplateColumns: '1.2fr 1fr',
-            overflow: 'hidden',
+            minHeight: 0,
+            backgroundColor: '#090d16',
           }}
         >
-          {/* Left Column: Code Editor & Stdin */}
+          {/* ----------------------------------------------------------------- */}
+          {/* LEFT PANE: SOURCE CODE EDITOR & STDIN TABS                        */}
+          {/* ----------------------------------------------------------------- */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              borderRight: '1px solid #e2e8f0',
-              backgroundColor: '#ffffff',
-              overflow: 'hidden',
+              borderRight: '1px solid #1e2638',
+              backgroundColor: '#0b0f19',
+              minHeight: 0,
             }}
           >
+            {/* Editor File Tab Bar */}
             <div
               style={{
-                padding: '8px 16px',
-                backgroundColor: '#f1f5f9',
-                borderBottom: '1px solid #e2e8f0',
+                height: '38px',
+                backgroundColor: '#090d16',
+                borderBottom: '1px solid #1e2638',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                padding: '0 8px',
               }}
             >
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Code2 size={14} color="#4f46e5" />
-                <span>C Source Code (main.c)</span>
-              </span>
-              <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                Press <kbd style={{ padding: '1px 5px', borderRadius: '4px', backgroundColor: '#e2e8f0', border: '1px solid #cbd5e1' }}>Ctrl+Enter</kbd> to run
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', height: '100%', gap: '2px' }}>
+                {/* Tab: main.c */}
+                <button
+                  onClick={() => setActiveEditorTab('code')}
+                  style={{
+                    height: '100%',
+                    backgroundColor: activeEditorTab === 'code' ? '#0b0f19' : 'transparent',
+                    border: 'none',
+                    borderBottom: activeEditorTab === 'code' ? '2px solid #6366f1' : '2px solid transparent',
+                    borderTop: activeEditorTab === 'code' ? '1px solid #1e2638' : 'none',
+                    color: activeEditorTab === 'code' ? '#f8fafc' : '#64748b',
+                    padding: '0 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '0.78rem',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ color: '#60a5fa', fontWeight: 800 }}>C</span>
+                  <span>main.c</span>
+                </button>
+
+                {/* Tab: stdin.txt */}
+                <button
+                  onClick={() => setActiveEditorTab('stdin')}
+                  style={{
+                    height: '100%',
+                    backgroundColor: activeEditorTab === 'stdin' ? '#0b0f19' : 'transparent',
+                    border: 'none',
+                    borderBottom: activeEditorTab === 'stdin' ? '2px solid #6366f1' : '2px solid transparent',
+                    borderTop: activeEditorTab === 'stdin' ? '1px solid #1e2638' : 'none',
+                    color: activeEditorTab === 'stdin' ? '#f8fafc' : '#64748b',
+                    padding: '0 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '0.78rem',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <FileText size={13} color={stdin ? '#38bdf8' : '#64748b'} />
+                  <span>stdin.txt</span>
+                  {stdin && (
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: '#38bdf8',
+                      }}
+                    />
+                  )}
+                </button>
+              </div>
+
+              {/* Editor Meta (Language & Encoding) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.7rem', color: '#475569', fontFamily: 'var(--font-mono)' }}>
+                <span>{lines.length} lines</span>
+                <span>•</span>
+                <span>UTF-8</span>
+                <span>•</span>
+                <span style={{ color: '#818cf8' }}>C11</span>
+              </div>
             </div>
 
-            <textarea
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="#include <stdio.h>&#10;&#10;int main() {&#10;    printf(&quot;Hello, World!\\n&quot;);&#10;    return 0;&#10;}"
-              spellCheck={false}
-              style={{
-                flex: 1,
-                width: '100%',
-                padding: '16px',
-                fontSize: '0.86rem',
-                fontFamily: 'var(--font-mono)',
-                lineHeight: 1.6,
-                border: 'none',
-                outline: 'none',
-                resize: 'none',
-                backgroundColor: '#0f172a',
-                color: '#f8fafc',
-                tabSize: 4,
-              }}
-            />
-
-            {/* Optional Stdin Drawer */}
-            {showStdin && (
+            {/* Editor Workspace Area */}
+            {activeEditorTab === 'code' ? (
               <div
                 style={{
-                  borderTop: '2px solid #334155',
-                  backgroundColor: '#1e293b',
-                  padding: '12px 16px',
+                  flex: 1,
+                  display: 'flex',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  backgroundColor: '#0b0f19',
+                }}
+              >
+                {/* Line Numbers Gutter */}
+                <div
+                  ref={gutterRef}
+                  style={{
+                    width: '46px',
+                    padding: '16px 8px 16px 0',
+                    backgroundColor: '#080c14',
+                    borderRight: '1px solid #1a2234',
+                    textAlign: 'right',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.82rem',
+                    lineHeight: '1.6',
+                    color: '#334155',
+                    userSelect: 'none',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {lines.map((_, i) => (
+                    <div key={i}>{i + 1}</div>
+                  ))}
+                </div>
+
+                {/* Textarea Code Input */}
+                <textarea
+                  ref={textareaRef}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  onScroll={handleScrollSync}
+                  spellCheck={false}
+                  placeholder="#include <stdio.h>&#10;&#10;int main() {&#10;    printf(&quot;Hello, World!\\n&quot;);&#10;    return 0;&#10;}"
+                  style={{
+                    flex: 1,
+                    height: '100%',
+                    padding: '16px',
+                    backgroundColor: 'transparent',
+                    color: '#f8fafc',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.83rem',
+                    lineHeight: '1.6',
+                    border: 'none',
+                    outline: 'none',
+                    resize: 'none',
+                    tabSize: 4,
+                    whiteSpace: 'pre',
+                    overflowWrap: 'normal',
+                    overflowX: 'auto',
+                  }}
+                />
+              </div>
+            ) : (
+              /* Stdin Input Editor Tab */
+              <div
+                style={{
+                  flex: 1,
+                  padding: '20px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px',
+                  gap: '12px',
+                  backgroundColor: '#0b0f19',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#94a3b8' }}>
-                    Standard Input (stdin) passed to executable:
-                  </span>
-                  <button
-                    onClick={() => setStdin('')}
-                    style={{ fontSize: '0.7rem', color: '#cbd5e1', background: 'none', border: 'none', cursor: 'pointer' }}
-                  >
-                    Clear Stdin
-                  </button>
+                  <div>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, color: '#f1f5f9' }}>
+                      Standard Input (stdin)
+                    </h4>
+                    <p style={{ fontSize: '0.74rem', color: '#64748b', margin: '2px 0 0 0' }}>
+                      Input passed to the binary process when calling scanf(), getchar(), or fgets().
+                    </p>
+                  </div>
+                  {stdin && (
+                    <button
+                      onClick={() => setStdin('')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#f87171',
+                        fontSize: '0.74rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <Trash2 size={12} />
+                      <span>Clear Stdin</span>
+                    </button>
+                  )}
                 </div>
+
                 <textarea
                   value={stdin}
                   onChange={(e) => setStdin(e.target.value)}
-                  placeholder="Input numbers, text, or tokens for scanf()..."
-                  rows={3}
+                  placeholder="Enter inputs here (e.g. numbers, strings, multiple lines)..."
                   style={{
+                    flex: 1,
                     width: '100%',
-                    padding: '8px 10px',
-                    backgroundColor: '#0f172a',
-                    color: '#e2e8f0',
-                    border: '1px solid #334155',
-                    borderRadius: '6px',
+                    padding: '14px',
+                    backgroundColor: '#070a12',
+                    border: '1px solid #1e2638',
+                    borderRadius: '8px',
+                    color: '#38bdf8',
                     fontFamily: 'var(--font-mono)',
-                    fontSize: '0.82rem',
-                    resize: 'none',
+                    fontSize: '0.84rem',
+                    lineHeight: '1.6',
                     outline: 'none',
+                    resize: 'none',
                   }}
                 />
               </div>
             )}
           </div>
 
-          {/* Right Column: Execution Output & Diagnostics */}
+          {/* ----------------------------------------------------------------- */}
+          {/* RIGHT PANE: REAL TERMINAL & COMPILER OUTPUT                       */}
+          {/* ----------------------------------------------------------------- */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              backgroundColor: '#f8fafc',
-              overflow: 'hidden',
+              backgroundColor: '#070a12',
+              minHeight: 0,
             }}
           >
-            {/* Output Header */}
+            {/* Terminal Tab Bar */}
             <div
               style={{
-                padding: '8px 16px',
-                backgroundColor: '#f1f5f9',
-                borderBottom: '1px solid #e2e8f0',
+                height: '38px',
+                backgroundColor: '#090d16',
+                borderBottom: '1px solid #1e2638',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                padding: '0 12px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>
-                  Execution Results & Diagnostics
-                </span>
-                {result && (
-                  <span
-                    style={{
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '10px',
-                      backgroundColor:
-                        result.status === 'success'
-                          ? '#ecfdf5'
-                          : result.status === 'compilation_error'
-                          ? '#fff1f2'
-                          : '#fff7ed',
-                      color:
-                        result.status === 'success'
-                          ? '#065f46'
-                          : result.status === 'compilation_error'
-                          ? '#9f1239'
-                          : '#9a3412',
-                      border: `1px solid ${
-                        result.status === 'success'
-                          ? '#a7f3d0'
-                          : result.status === 'compilation_error'
-                          ? '#fecdd3'
-                          : '#fed7aa'
-                      }`,
-                    }}
-                  >
-                    {result.status.toUpperCase().replace('_', ' ')}
-                  </span>
-                )}
-              </div>
-
-              {result && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <button
-                  onClick={handleCopyOutput}
+                  onClick={() => setActiveTerminalTab('stdout')}
                   style={{
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: activeTerminalTab === 'stdout' ? '2px solid #10b981' : '2px solid transparent',
+                    color: activeTerminalTab === 'stdout' ? '#f8fafc' : '#64748b',
+                    padding: '8px 12px',
+                    fontSize: '0.76rem',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '0.72rem',
-                    color: '#475569',
-                    background: 'none',
+                    gap: '6px',
+                  }}
+                >
+                  <Terminal size={13} color={activeTerminalTab === 'stdout' ? '#10b981' : '#64748b'} />
+                  <span>stdout</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTerminalTab('diagnostics')}
+                  style={{
+                    background: 'transparent',
                     border: 'none',
+                    borderBottom: activeTerminalTab === 'diagnostics' ? '2px solid #ef4444' : '2px solid transparent',
+                    color: activeTerminalTab === 'diagnostics' ? '#f8fafc' : '#64748b',
+                    padding: '8px 12px',
+                    fontSize: '0.76rem',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <AlertTriangle size={13} color={result?.compilation_output ? '#ef4444' : '#64748b'} />
+                  <span>Diagnostics</span>
+                  {result?.compilation_output && (
+                    <span
+                      style={{
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        fontSize: '0.62rem',
+                        padding: '1px 5px',
+                        borderRadius: '10px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      !
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveTerminalTab('raw')}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: activeTerminalTab === 'raw' ? '2px solid #6366f1' : '2px solid transparent',
+                    color: activeTerminalTab === 'raw' ? '#f8fafc' : '#64748b',
+                    padding: '8px 12px',
+                    fontSize: '0.76rem',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
                     cursor: 'pointer',
                   }}
-                  title="Copy terminal output"
                 >
-                  {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                  <span>Build Log</span>
                 </button>
-              )}
+              </div>
+
+              {/* Status & Copy Action */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {result && (
+                  <button
+                    onClick={handleCopyOutput}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: '#cbd5e1',
+                      padding: '3px 8px',
+                      borderRadius: '5px',
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                    title="Copy terminal content"
+                  >
+                    {copied ? <Check size={11} color="#10b981" /> : <Copy size={11} />}
+                    <span>{copied ? 'Copied' : 'Copy'}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Results Content Area */}
+            {/* Terminal Output Screen */}
             <div
               style={{
                 flex: 1,
                 padding: '16px',
                 overflowY: 'auto',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.82rem',
+                lineHeight: '1.6',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px',
               }}
             >
-              {error && (
-                <div
-                  style={{
-                    backgroundColor: '#fef2f2',
-                    border: '1px solid #fecaca',
-                    borderLeft: '4px solid #ef4444',
-                    borderRadius: '8px',
-                    padding: '12px 14px',
-                    color: '#991b1b',
-                    fontSize: '0.84rem',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '8px',
-                  }}
-                >
-                  <XCircle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />
-                  <div>
-                    <strong>Execution Error:</strong>
-                    <div style={{ marginTop: '2px', wordBreak: 'break-word' }}>{error}</div>
-                  </div>
-                </div>
-              )}
+              {/* Shell Execution Command Simulation Header */}
+              <div
+                style={{
+                  color: '#475569',
+                  borderBottom: '1px solid #141b2b',
+                  paddingBottom: '10px',
+                  marginBottom: '12px',
+                  fontSize: '0.75rem',
+                }}
+              >
+                <div>$ gcc -std=c11 -O2 -pipe main.c -o /tmp/sandbox_bin</div>
+                {stdin && <div>$ /tmp/sandbox_bin &lt; stdin.txt</div>}
+                {!stdin && <div>$ /tmp/sandbox_bin</div>}
+              </div>
 
-              {!result && !running && !error && (
-                <div
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#94a3b8',
-                    textAlign: 'center',
-                    padding: '24px',
-                  }}
-                >
-                  <Terminal size={42} strokeWidth={1.5} color="#cbd5e1" style={{ marginBottom: '12px' }} />
-                  <div style={{ fontWeight: 600, color: '#64748b', fontSize: '0.95rem' }}>
-                    Ready to Test Compiler
-                  </div>
-                  <p style={{ fontSize: '0.82rem', maxWidth: '280px', marginTop: '4px' }}>
-                    Select a preset or edit the C code on the left, then click <strong>"Compile & Run"</strong> below.
-                  </p>
-                </div>
-              )}
-
+              {/* Loading State */}
               {running && (
                 <div
                   style={{
@@ -664,223 +915,278 @@ export const TestCompilerModal: React.FC<Props> = ({ isOpen, onClose, initialHea
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#4f46e5',
+                    color: '#818cf8',
+                    gap: '12px',
                   }}
                 >
-                  <RefreshCw size={36} className="spin" style={{ marginBottom: '12px' }} />
-                  <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>Compiling with GCC...</div>
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px' }}>
-                    Running in secure sandbox (-std=c11 -O2)
+                  <RefreshCw size={32} className="spin" />
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Compiling with GCC 14.2...</div>
+                  <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                    Invoking Linux compiler sandbox & linking binary
                   </div>
                 </div>
               )}
 
-              {result && (
-                <>
-                  {/* Summary Metric Strip */}
+              {/* Network or Gateway Error */}
+              {error && (
+                <div
+                  style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    color: '#f87171',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                  }}
+                >
+                  <XCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <strong style={{ display: 'block', marginBottom: '2px' }}>Execution Error:</strong>
+                    <div style={{ wordBreak: 'break-word', color: '#fca5a5' }}>{error}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Idle Empty State */}
+              {!result && !running && !error && (
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#334155',
+                    textAlign: 'center',
+                  }}
+                >
                   <div
                     style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: '8px',
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '14px',
+                      color: '#475569',
                     }}
                   >
-                    <div
-                      style={{
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        padding: '8px 12px',
-                      }}
-                    >
-                      <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>Verdict</div>
-                      <div
-                        style={{
-                          fontSize: '0.85rem',
-                          fontWeight: 700,
-                          color:
-                            result.status === 'success'
-                              ? '#059669'
-                              : result.status === 'compilation_error'
-                              ? '#dc2626'
-                              : '#d97706',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          marginTop: '2px',
-                        }}
-                      >
-                        {result.status === 'success' ? (
-                          <CheckCircle2 size={14} />
-                        ) : result.status === 'compilation_error' ? (
-                          <XCircle size={14} />
-                        ) : (
-                          <AlertTriangle size={14} />
-                        )}
-                        <span>{result.status.toUpperCase()}</span>
-                      </div>
-                    </div>
+                    <Terminal size={24} />
+                  </div>
+                  <div style={{ fontWeight: 600, color: '#64748b', fontSize: '0.88rem' }}>
+                    Awaiting Code Compilation
+                  </div>
+                  <p style={{ fontSize: '0.78rem', color: '#475569', maxWidth: '300px', marginTop: '6px', lineHeight: 1.5 }}>
+                    Click <strong style={{ color: '#818cf8' }}>"Compile & Run"</strong> or press <kbd style={{ padding: '1px 5px', borderRadius: '4px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#cbd5e1' }}>Ctrl+Enter</kbd> to build and execute.
+                  </p>
+                </div>
+              )}
 
-                    <div
-                      style={{
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        padding: '8px 12px',
-                      }}
-                    >
-                      <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>Execution Time</div>
-                      <div
-                        style={{
-                          fontSize: '0.85rem',
-                          fontWeight: 700,
-                          color: '#0f172a',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          marginTop: '2px',
-                          fontFamily: 'var(--font-mono)',
-                        }}
-                      >
-                        <Clock size={13} color="#64748b" />
-                        <span>{result.execution_time_ms.toFixed(1)} ms</span>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        padding: '8px 12px',
-                      }}
-                    >
-                      <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>Exit Code</div>
-                      <div
-                        style={{
-                          fontSize: '0.85rem',
-                          fontWeight: 700,
-                          color: result.exit_code === 0 ? '#059669' : '#dc2626',
-                          marginTop: '2px',
-                          fontFamily: 'var(--font-mono)',
-                        }}
-                      >
-                        {result.exit_code !== null && result.exit_code !== undefined ? result.exit_code : 'N/A'}
-                      </div>
-                    </div>
+              {/* Result: STDOUT View */}
+              {result && activeTerminalTab === 'stdout' && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      color: result.status === 'success' ? '#34d399' : '#f87171',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {result.stdout || (
+                      <span style={{ color: '#475569', fontStyle: 'italic' }}>
+                        [Program completed without writing to standard output]
+                      </span>
+                    )}
                   </div>
 
-                  {/* Standard Output Console */}
-                  <div>
-                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
-                      Standard Output (stdout):
-                    </div>
+                  {result.stderr && (
                     <div
                       style={{
-                        backgroundColor: '#0f172a',
-                        color: '#34d399',
-                        padding: '12px 14px',
+                        marginTop: '16px',
+                        padding: '10px 12px',
+                        backgroundColor: 'rgba(249, 115, 22, 0.08)',
+                        borderLeft: '3px solid #f97316',
+                        color: '#fb923c',
+                        borderRadius: '0 6px 6px 0',
+                        fontSize: '0.78rem',
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, marginBottom: '4px' }}>Standard Error (stderr):</div>
+                      <div>{result.stderr}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Result: DIAGNOSTICS View */}
+              {result && activeTerminalTab === 'diagnostics' && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {result.compilation_output ? (
+                    <div
+                      style={{
+                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
                         borderRadius: '8px',
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.82rem',
-                        lineHeight: 1.5,
-                        minHeight: '80px',
-                        maxHeight: '220px',
-                        overflowY: 'auto',
+                        padding: '14px',
+                        color: '#fca5a5',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
-                        border: '1px solid #1e293b',
+                        lineHeight: 1.5,
                       }}
                     >
-                      {result.stdout || <span style={{ color: '#64748b' }}>[No output generated]</span>}
+                      {result.compilation_output}
                     </div>
+                  ) : (
+                    <div
+                      style={{
+                        padding: '30px',
+                        textAlign: 'center',
+                        color: '#10b981',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <CheckCircle2 size={28} />
+                      <div style={{ fontWeight: 700 }}>Clean Build — Zero Compiler Warnings or Errors</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                        GCC compiled source file main.c without diagnostics.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Result: RAW BUILD LOG View */}
+              {result && activeTerminalTab === 'raw' && (
+                <div
+                  style={{
+                    flex: 1,
+                    color: '#94a3b8',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    fontSize: '0.78rem',
+                  }}
+                >
+                  <div style={{ color: '#818cf8', marginBottom: '8px' }}>
+                    --- [EXECUTION REPORT] ---
+                  </div>
+                  <div>Status:         {result.status.toUpperCase()}</div>
+                  <div>Exit Code:      {result.exit_code !== null && result.exit_code !== undefined ? result.exit_code : 'N/A'}</div>
+                  <div>Execution Time: {result.execution_time_ms.toFixed(2)} ms</div>
+                  <div style={{ margin: '8px 0', borderBottom: '1px solid #1e2638' }} />
+                  <div style={{ color: '#818cf8', marginBottom: '8px' }}>--- [COMPILER OUTPUT] ---</div>
+                  <div>{result.compilation_output || '(Empty)'}</div>
+                  <div style={{ margin: '8px 0', borderBottom: '1px solid #1e2638' }} />
+                  <div style={{ color: '#818cf8', marginBottom: '8px' }}>--- [STDOUT] ---</div>
+                  <div>{result.stdout || '(Empty)'}</div>
+                </div>
+              )}
+
+              {/* Terminal Exit Footer (when result exists) */}
+              {result && (
+                <div
+                  style={{
+                    marginTop: '16px',
+                    paddingTop: '12px',
+                    borderTop: '1px solid #141b2b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '0.74rem',
+                    color: '#64748b',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {result.status === 'success' ? (
+                      <span style={{ color: '#10b981', fontWeight: 700 }}>✔ Process completed (exit 0)</span>
+                    ) : result.status === 'compilation_error' ? (
+                      <span style={{ color: '#ef4444', fontWeight: 700 }}>✖ Build Failed (compilation error)</span>
+                    ) : (
+                      <span style={{ color: '#f59e0b', fontWeight: 700 }}>⚠ Process exited (exit {result.exit_code})</span>
+                    )}
                   </div>
 
-                  {/* Compilation Output & Diagnostics (if any) */}
-                  {result.compilation_output && (
-                    <div>
-                      <div
-                        style={{
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          color: result.status === 'compilation_error' ? '#9f1239' : '#475569',
-                          marginBottom: '6px',
-                        }}
-                      >
-                        Compiler Output & Diagnostics:
-                      </div>
-                      <div
-                        style={{
-                          backgroundColor: result.status === 'compilation_error' ? '#fff1f2' : '#f1f5f9',
-                          color: result.status === 'compilation_error' ? '#9f1239' : '#334155',
-                          border: `1px solid ${result.status === 'compilation_error' ? '#fecdd3' : '#e2e8f0'}`,
-                          padding: '12px 14px',
-                          borderRadius: '8px',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '0.8rem',
-                          lineHeight: 1.5,
-                          maxHeight: '200px',
-                          overflowY: 'auto',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                        }}
-                      >
-                        {result.compilation_output}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Stderr (if any) */}
-                  {result.stderr && (
-                    <div>
-                      <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#9a3412', marginBottom: '6px' }}>
-                        Standard Error (stderr):
-                      </div>
-                      <div
-                        style={{
-                          backgroundColor: '#fff7ed',
-                          color: '#9a3412',
-                          border: '1px solid #fed7aa',
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '0.8rem',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                        }}
-                      >
-                        {result.stderr}
-                      </div>
-                    </div>
-                  )}
-                </>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span>Runtime: <strong style={{ color: '#cbd5e1' }}>{result.execution_time_ms.toFixed(1)} ms</strong></span>
+                    {lastRunAt && <span>Run at {lastRunAt}</span>}
+                  </div>
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Footer Bar */}
+        {/* =================================================================== */}
+        {/* 4. IDE STATUS BAR & RUN LAUNCHER FOOTER                             */}
+        {/* =================================================================== */}
         <div
-          className="modal-footer"
           style={{
-            padding: '14px 24px',
-            backgroundColor: '#ffffff',
-            borderTop: '1px solid #e2e8f0',
+            height: '52px',
+            backgroundColor: '#090d14',
+            borderTop: '1px solid #1e2638',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            padding: '0 20px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#64748b' }}>
-            <span>Preset: <strong>{PRESETS.find((x) => x.id === selectedPreset)?.name}</strong></span>
+          {/* Status Metrics on the left */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.76rem', color: '#64748b' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Cpu size={14} color="#6366f1" />
+              <span>GCC 14.2 (Linux x86_64)</span>
+            </span>
+
+            <span>•</span>
+
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ShieldCheck size={14} color="#10b981" />
+              <span>Sandboxed Execution</span>
+            </span>
+
+            {result && (
+              <>
+                <span>•</span>
+                <span
+                  style={{
+                    fontWeight: 700,
+                    color:
+                      result.status === 'success'
+                        ? '#10b981'
+                        : result.status === 'compilation_error'
+                        ? '#ef4444'
+                        : '#f59e0b',
+                  }}
+                >
+                  {result.status.toUpperCase().replace('_', ' ')} ({result.execution_time_ms.toFixed(1)}ms)
+                </span>
+              </>
+            )}
           </div>
 
+          {/* Action buttons on the right */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               onClick={() => handleSelectPreset(selectedPreset)}
               disabled={running}
-              className="btn btn-secondary btn-sm"
-              style={{ padding: '8px 14px' }}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#94a3b8',
+                padding: '7px 14px',
+                borderRadius: '8px',
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
             >
               Reset Code
             </button>
@@ -888,13 +1194,24 @@ export const TestCompilerModal: React.FC<Props> = ({ isOpen, onClose, initialHea
             <button
               onClick={handleRunCode}
               disabled={running}
-              className="btn btn-primary"
               style={{
+                background: running
+                  ? '#312e81'
+                  : 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
+                border: 'none',
+                color: '#ffffff',
+                padding: '8px 22px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '8px 20px',
-                fontWeight: 600,
+                cursor: running ? 'not-allowed' : 'pointer',
+                boxShadow: running
+                  ? 'none'
+                  : '0 4px 16px rgba(79, 70, 229, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
+                transition: 'all 0.15s ease',
               }}
             >
               {running ? (
@@ -906,6 +1223,18 @@ export const TestCompilerModal: React.FC<Props> = ({ isOpen, onClose, initialHea
                 <>
                   <Play size={15} fill="currentColor" />
                   <span>Compile & Run</span>
+                  <kbd
+                    style={{
+                      fontSize: '0.66rem',
+                      fontWeight: 700,
+                      backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                      padding: '2px 5px',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                    }}
+                  >
+                    Ctrl+Enter
+                  </kbd>
                 </>
               )}
             </button>
