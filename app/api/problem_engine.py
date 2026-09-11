@@ -105,7 +105,7 @@ def get_gemini_status() -> Dict[str, Any]:
     has_key = bool(GEMINI_API_KEY and GEMINI_API_KEY.strip())
     return {
         "configured": has_key,
-        "model": VIVA_GEMINI_MODEL or "gemini-2.5-flash",
+        "model": VIVA_GEMINI_MODEL or "gemini-3.8-flash",
     }
 
 

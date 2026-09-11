@@ -128,6 +128,7 @@ FRONTEND_URL: str = os.getenv("FRONTEND_URL", "").strip()
 
 # Cloud AI & LLM Provider Configuration
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
 LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini" if GEMINI_API_KEY else "ollama").lower()
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
 DEFAULT_LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen2.5-coder:3b")
@@ -138,7 +139,7 @@ LLM_OPENAI_BASE_URL: str = os.getenv("LLM_OPENAI_BASE_URL", "").rstrip("/")
 # Viva Generator Configuration
 VIVA_LLM_PROVIDER: str = os.getenv("VIVA_LLM_PROVIDER", LLM_PROVIDER).lower()
 VIVA_OLLAMA_MODEL: str = os.getenv("VIVA_OLLAMA_MODEL", DEFAULT_LLM_MODEL)
-VIVA_GEMINI_MODEL: str = os.getenv("VIVA_GEMINI_MODEL", "gemini-2.5-flash")
+VIVA_GEMINI_MODEL: str = os.getenv("VIVA_GEMINI_MODEL", GEMINI_MODEL).strip()
 
 # Data Persistence Directory
 DATA_DIR: Path = Path("data")

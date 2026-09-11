@@ -691,7 +691,7 @@ async def _generate_with_gemini(
         raise ValueError("Gemini API key is not configured. Please supply an API key in the UI or .env.")
 
     pid = problem.problem_id
-    target_model = VIVA_GEMINI_MODEL or "gemini-2.5-flash"
+    target_model = VIVA_GEMINI_MODEL or "gemini-3.8-flash"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={effective_key}"
 
     prompt = f"""You are an elite automated test generation engineer for C programming curriculum.

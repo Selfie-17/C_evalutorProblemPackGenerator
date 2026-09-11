@@ -293,7 +293,7 @@ Return ONLY a valid JSON array of objects strictly matching this schema:
 
     if provider_clean == "gemini":
         effective_key = api_key or GEMINI_API_KEY
-        target_model = VIVA_GEMINI_MODEL or "gemini-2.5-flash"
+        target_model = VIVA_GEMINI_MODEL or "gemini-3.8-flash"
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={effective_key}"
         payload = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],

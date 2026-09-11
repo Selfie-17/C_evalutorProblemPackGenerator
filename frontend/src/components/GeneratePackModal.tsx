@@ -43,7 +43,7 @@ export const GeneratePackModal: React.FC<Props> = ({
 
   // Model & Provider Selection
   const [provider, setProvider] = useState<'gemini' | 'ollama'>('gemini');
-  const [geminiModel, setGeminiModel] = useState('gemini-3.7-flash');
+  const [geminiModel, setGeminiModel] = useState('gemini-3.8-flash');
   const [ollamaModel, setOllamaModel] = useState('qwen2.5-coder:3b');
   const [apiKey, setApiKey] = useState('');
 
@@ -447,8 +447,8 @@ export const GeneratePackModal: React.FC<Props> = ({
                         backgroundColor: 'white',
                       }}
                     >
-                      <option value="gemini-3.7-flash">gemini-3.7-flash (Latest 3.7 Flash - Recommended)</option>
-                      <option value="gemini-3.8-flash">gemini-3.8-flash (Latest 3.8 Flash)</option>
+                      <option value="gemini-3.8-flash">gemini-3.8-flash (Latest 3.8 Flash - Recommended)</option>
+                      <option value="gemini-3.7-flash">gemini-3.7-flash (3.7 Flash)</option>
                       <option value="gemini-2.5-flash">gemini-2.5-flash</option>
                       <option value="gemini-2.0-flash">gemini-2.0-flash</option>
                       <option value="gemini-1.5-flash">gemini-1.5-flash</option>

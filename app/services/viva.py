@@ -1,8 +1,12 @@
+import asyncio
 import json
+import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 from app.config import (
     GEMINI_API_KEY,
@@ -127,17 +131,35 @@ async def query_gemini_viva(prompt: str, model_name: str, api_key: str) -> str:
         },
     }
 
-    async with httpx.AsyncClient(timeout=LLM_TIMEOUT_SECONDS) as client:
-        resp = await client.post(url, json=payload)
-        if resp.status_code != 200:
-            raise RuntimeError(f"Gemini API error (HTTP {resp.status_code}): {resp.text}")
-        data = resp.json()
-
+    max_retries = 3
+    backoff = 2.0
+    for attempt in range(max_retries):
         try:
-            raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
-            return raw_text
-        except (KeyError, IndexError) as e:
-            raise RuntimeError(f"Unexpected response structure from Gemini API: {data}") from e
+            async with httpx.AsyncClient(timeout=LLM_TIMEOUT_SECONDS) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    try:
+                        raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                        return raw_text
+                    except (KeyError, IndexError) as e:
+                        raise RuntimeError(f"Unexpected response structure from Gemini API: {data}") from e
+                elif resp.status_code in (429, 503) and attempt < max_retries - 1:
+                    logger.warning(
+                        f"Gemini API returned HTTP {resp.status_code}. Backing off {backoff:.1f}s before retry {attempt + 1}/{max_retries}..."
+                    )
+                    await asyncio.sleep(backoff)
+                    backoff *= 2.0
+                    continue
+                else:
+                    raise RuntimeError(f"Gemini API error (HTTP {resp.status_code}): {resp.text}")
+        except httpx.TimeoutException:
+            if attempt < max_retries - 1:
+                await asyncio.sleep(backoff)
+                continue
+            raise RuntimeError("Gemini API request timed out.")
+
+    raise RuntimeError("Gemini API failed after maximum retries.")
 
 
 def parse_and_validate_viva_json(raw_json_str: str) -> Tuple[Optional[str], List[VivaQuestion]]:

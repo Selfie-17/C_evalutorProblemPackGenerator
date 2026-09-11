@@ -12,6 +12,7 @@ import httpx
 from app.config import (
     DEFAULT_LLM_MODEL,
     GEMINI_API_KEY,
+    GEMINI_MODEL,
     LLM_OPENAI_BASE_URL,
     LLM_TIMEOUT_SECONDS,
     OLLAMA_BASE_URL,
@@ -68,7 +69,7 @@ RULES:
 
 async def query_gemini_problem(
     prompt: str,
-    model_name: str = "gemini-3.7-flash",
+    model_name: str = GEMINI_MODEL,
     api_key: Optional[str] = None,
     system_prompt: str = SYSTEM_PROMPT,
 ) -> str:
@@ -100,8 +101,8 @@ async def query_gemini_problem(
                 if resp.status_code == 200:
                     data = resp.json()
                     return data["candidates"][0]["content"]["parts"][0]["text"]
-                elif resp.status_code == 429 and attempt < max_retries - 1:
-                    logger.warning(f"Gemini 429 Rate Limit. Waiting {backoff:.1f}s before retry {attempt + 1}/{max_retries}...")
+                elif resp.status_code in (429, 503) and attempt < max_retries - 1:
+                    logger.warning(f"Gemini API returned HTTP {resp.status_code}. Waiting {backoff:.1f}s before retry {attempt + 1}/{max_retries}...")
                     await asyncio.sleep(backoff)
                     backoff *= 2.0
                     continue
@@ -128,7 +129,7 @@ async def query_local_llm(
 
     # Route to Gemini with automatic Ollama fallback if Gemini fails
     if provider_clean == "gemini" or (provider_clean != "ollama" and (api_key or GEMINI_API_KEY)):
-        gemini_model = model_name if ("gemini" in (model_name or "").lower()) else "gemini-3.7-flash"
+        gemini_model = model_name if ("gemini" in (model_name or "").lower()) else GEMINI_MODEL
         try:
             return await query_gemini_problem(
                 prompt=prompt,
@@ -366,7 +367,7 @@ async def generate_problem_from_llm(
     Full pipeline to generate, validate, verify, and register a LeetCode-style C problem.
     """
     provider_to_use = (request.provider or ("gemini" if (request.api_key or GEMINI_API_KEY) else "ollama")).lower()
-    default_model = "gemini-3.7-flash" if provider_to_use == "gemini" else DEFAULT_LLM_MODEL
+    default_model = GEMINI_MODEL if provider_to_use == "gemini" else DEFAULT_LLM_MODEL
     model_to_use = request.model or default_model
     user_prompt = f"""Problem Idea / Description: {request.prompt}
 Target Difficulty: {request.difficulty.value if request.difficulty else 'Easy'}

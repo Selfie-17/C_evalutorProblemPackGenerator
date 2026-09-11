@@ -4,6 +4,8 @@ import logging
 import re
 from typing import List, Optional
 
+from app.config import GEMINI_MODEL
+
 from app.database.db import (
     delete_week_problems,
     get_week,
@@ -578,7 +580,7 @@ async def generate_problems_from_exact_questions(
 
     problems: List[ProblemInPack] = []
     errors: List[str] = []
-    model_to_use = request.model or "gemini-2.5-flash"
+    model_to_use = request.model or GEMINI_MODEL
 
     for idx, q_text in enumerate(questions, start=1):
         prob_num = next_num

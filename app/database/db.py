@@ -36,7 +36,9 @@ if DATABASE_URL:
         _is_postgres = True
         normalized_url = DATABASE_URL
         if normalized_url.startswith("postgres://"):
-            normalized_url = "postgresql://" + normalized_url[len("postgres://"):]
+            normalized_url = "postgresql+psycopg://" + normalized_url[len("postgres://"):]
+        elif normalized_url.startswith("postgresql://"):
+            normalized_url = "postgresql+psycopg://" + normalized_url[len("postgresql://"):]
 
         try:
             from sqlalchemy import create_engine

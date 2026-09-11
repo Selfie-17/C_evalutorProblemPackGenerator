@@ -621,7 +621,7 @@ class GeneratePackRequest(BaseModel):
     topics: List[str] = Field(default_factory=list, description="Target topics (e.g. ['loops', 'conditions', 'arrays'])")
     verify_with_reference: bool = Field(default=True, description="Verify reference C solution against test cases")
     provider: Optional[str] = Field(default="gemini", description="LLM provider: 'gemini' or 'ollama'")
-    model: Optional[str] = Field(default="gemini-3.7-flash", description="Model override (e.g. 'gemini-3.7-flash', 'gemini-3.8-flash', or 'qwen2.5-coder:3b')")
+    model: Optional[str] = Field(default="gemini-3.8-flash", description="Model override (e.g. 'gemini-3.8-flash', 'gemini-3.7-flash', or 'qwen2.5-coder:3b')")
     api_key: Optional[str] = Field(default=None, description="Optional API key for Gemini")
 
 
@@ -637,7 +637,7 @@ class GenerateFromQuestionsRequest(BaseModel):
     difficulty: Optional[str] = Field(default=None, description="Optional difficulty override; defaults to model classification")
     verify_with_reference: bool = Field(default=True, description="Verify reference C solution with GCC compiler")
     provider: Optional[str] = Field(default="gemini", description="LLM provider: 'gemini' or 'ollama'")
-    model: Optional[str] = Field(default="gemini-3.7-flash", description="Model override (e.g. 'gemini-3.7-flash', 'gemini-3.8-flash', or 'qwen2.5-coder:3b')")
+    model: Optional[str] = Field(default="gemini-3.8-flash", description="Model override (e.g. 'gemini-3.8-flash', 'gemini-3.7-flash', or 'qwen2.5-coder:3b')")
     api_key: Optional[str] = Field(default=None, description="Optional API key for Gemini")
     replace_all: bool = Field(default=False, description="Whether to replace all existing problems in the week (default: False, appends)")
 

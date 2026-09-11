@@ -67,7 +67,7 @@ async def review_problem_with_gemini(
             "suggested_test_cases": [],
         }
 
-    target_model = model_name or VIVA_GEMINI_MODEL or "gemini-2.5-flash"
+    target_model = model_name or VIVA_GEMINI_MODEL or "gemini-3.8-flash"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={effective_key}"
 
     # Prepare existing test case representation
