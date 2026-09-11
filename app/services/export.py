@@ -1,7 +1,7 @@
 import io
 import json
 import zipfile
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from app.database.db import (
     get_student_submissions,

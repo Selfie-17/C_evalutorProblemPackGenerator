@@ -6,7 +6,7 @@ and human-friendly validation error diagnostics.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Union
 from pydantic import ValidationError
 
 from problem_engine.problem_schema import (
