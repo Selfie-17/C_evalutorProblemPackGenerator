@@ -97,3 +97,13 @@ int main() {
     assert res["passed_test_cases"] == 3
     assert len(res["results"]) == 3
     assert res["results"][0]["passed"] is True
+
+
+def test_health_endpoint_get_and_head():
+    get_resp = client.get("/health")
+    assert get_resp.status_code == 200
+    assert "gcc_available" in get_resp.json()
+
+    head_resp = client.head("/health")
+    assert head_resp.status_code == 200
+

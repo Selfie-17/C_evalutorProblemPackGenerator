@@ -100,6 +100,7 @@ def root():
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
+@app.head("/health", include_in_schema=False)
 def health_check():
     """Check GCC compiler availability and system health."""
     return get_compiler_health()
