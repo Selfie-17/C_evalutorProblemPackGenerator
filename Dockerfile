@@ -5,7 +5,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
-    PORT=8000 \
+    PORT=10000 \
     CC=gcc \
     CFLAGS="-std=c11 -O2 -pipe"
 
@@ -36,11 +36,11 @@ RUN mkdir -p /app/data/staging /app/data && \
 # Switch to non-root user
 USER appuser
 
-EXPOSE 8000
+EXPOSE 10000
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
+    CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
 
 # Run Uvicorn binding to 0.0.0.0 and respecting Render dynamic $PORT
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}"]

@@ -157,7 +157,24 @@ def get_db_connection() -> Generator[Any, None, None]:
         finally:
             conn.close()
     else:
-        raw_conn = _pg_engine.raw_connection()
+        try:
+            raw_conn = _pg_engine.raw_connection()
+        except Exception as e:
+            logger.error(f"PostgreSQL connection error: {e}. Falling back to local SQLite database.")
+            conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON;")
+            conn.execute("PRAGMA journal_mode = WAL;")
+            try:
+                yield conn
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.close()
+            return
+
         wrapper = PgConnectionWrapper(raw_conn)
         try:
             yield wrapper

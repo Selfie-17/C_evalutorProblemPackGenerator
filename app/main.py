@@ -33,8 +33,12 @@ from app.services.viva import generate_viva_questions
 
 from app.config import FRONTEND_URL
 
-# Initialize database schema on startup
-init_db()
+# Initialize database schema on startup with error handling
+try:
+    init_db()
+except Exception as e:
+    import logging
+    logging.getLogger(__name__).error(f"Database schema initialization warning: {e}", exc_info=True)
 
 app = FastAPI(
     title="C Lab Evaluation Platform & LeetCode Judge API",
