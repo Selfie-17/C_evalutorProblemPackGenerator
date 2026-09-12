@@ -660,6 +660,12 @@ class GenerateSingleQuestionResponse(BaseModel):
     error: Optional[str] = None
 
 
+class AddDraftQuestionsRequest(BaseModel):
+    questions: List[str] = Field(default_factory=list, description="Explicit list of question prompts")
+    raw_text: Optional[str] = Field(default=None, description="Raw multiline text of questions")
+    replace_all: bool = Field(default=False, description="Whether to replace existing problems in the week")
+
+
 class GenerateFromQuestionsRequest(BaseModel):
     raw_text: Optional[str] = Field(
         default=None,

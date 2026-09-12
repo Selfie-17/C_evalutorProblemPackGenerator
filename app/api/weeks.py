@@ -13,6 +13,7 @@ from app.database.db import (
     update_week,
 )
 from app.models import (
+    AddDraftQuestionsRequest,
     GenerateFromQuestionsRequest,
     GeneratePackRequest,
     GeneratePackResponse,
@@ -25,6 +26,7 @@ from app.models import (
 )
 from app.services.export import generate_problem_pack_zip
 from app.services.pack_generator import (
+    add_draft_questions_to_week,
     generate_problems_from_exact_questions,
     generate_single_problem_from_exact_question,
     generate_week_problem_pack,
@@ -167,6 +169,15 @@ async def generate_single_question(week_id: str, request: GenerateSingleQuestion
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Week '{week_id}' not found.")
     response = await generate_single_problem_from_exact_question(week_id=week_id, request=request)
     return response
+
+
+@router.post("/{week_id}/add-draft-questions", response_model=List[ProblemInPack])
+def add_draft_questions(week_id: str, request: AddDraftQuestionsRequest):
+    """Save questions directly as draft problems in the week so they can be generated individually."""
+    week = get_week(week_id)
+    if not week:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Week '{week_id}' not found.")
+    return add_draft_questions_to_week(week_id=week_id, request=request)
 
 
 @router.get("/{week_id}/export-pack")

@@ -13,6 +13,8 @@ import {
   Sparkles,
   Eye,
   RefreshCw,
+  RotateCw,
+  Loader2,
   Search,
   Filter,
   Trash2,
@@ -42,6 +44,7 @@ import {
   fetchWeekAnalytics,
   fetchWeekProblems,
   fetchWeekStudents,
+  generateSingleQuestion,
   getExportProblemPackUrl,
   getExportStudentJsonUrl,
   getExportWeekJsonUrl,
@@ -80,6 +83,9 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
   const [problems, setProblems] = useState<ProblemInPack[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<ProblemInPack | null>(null);
   const [isPackModalOpen, setIsPackModalOpen] = useState(false);
+  const [generatingProblemId, setGeneratingProblemId] = useState<number | null>(null);
+  const [isGeneratingAllUnverified, setIsGeneratingAllUnverified] = useState(false);
+  const [rowActionFeedback, setRowActionFeedback] = useState<{ number: number; message: string; type: 'success' | 'error' } | null>(null);
 
   // LeetCode Problem Testing state
   const [activeLeetCodeProblem, setActiveLeetCodeProblem] = useState<ProblemModel | null>(null);
@@ -669,11 +675,75 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                 )}
               </div>
 
-              {/* Setup / Add Questions */}
+              {/* Add Questions */}
               <button onClick={() => setIsPackModalOpen(true)} className="btn btn-primary btn-sm">
                 <Sparkles size={14} />
-                <span>+ Add Questions / Setup</span>
+                <span>+ Add Questions</span>
               </button>
+
+              {/* Generate All Unverified Button */}
+              {problems.some((p) => !p.is_verified) && (
+                <button
+                  onClick={async () => {
+                    const unverified = problems.filter((p) => !p.is_verified);
+                    if (unverified.length === 0) return;
+                    setIsGeneratingAllUnverified(true);
+                    for (const item of unverified) {
+                      const qText = (item.description && item.description.trim().length > 3)
+                        ? item.description.trim()
+                        : item.title;
+                      setGeneratingProblemId(item.number);
+                      try {
+                        const savedKey = localStorage.getItem('gemini_api_key') || undefined;
+                        const res = await generateSingleQuestion(week.id, {
+                          question_text: qText,
+                          problem_number: item.number,
+                          replace_existing: true,
+                          verify_with_reference: true,
+                          provider: 'gemini',
+                          model: 'gemini-3.8-flash',
+                          api_key: savedKey,
+                        });
+                        if (res.status === 'success' && res.problem) {
+                          const updated = res.problem;
+                          setProblems((prev) =>
+                            prev.map((p) => (p.number === item.number ? updated : p))
+                          );
+                        }
+                      } catch (err) {
+                        console.error('Error generating problem', err);
+                      }
+                      await new Promise((r) => setTimeout(r, 800));
+                    }
+                    setGeneratingProblemId(null);
+                    setIsGeneratingAllUnverified(false);
+                  }}
+                  disabled={isGeneratingAllUnverified || generatingProblemId !== null}
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                  title="Generate 5 test cases and GCC verified reference solution for all unverified questions"
+                >
+                  {isGeneratingAllUnverified ? (
+                    <>
+                      <Loader2 size={13} className="spin" />
+                      <span>Generating Unverified...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={13} />
+                      <span>Generate All Unverified ({problems.filter((p) => !p.is_verified).length})</span>
+                    </>
+                  )}
+                </button>
+              )}
 
               {problems.length > 0 && (
                 <>
@@ -704,6 +774,34 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
             </div>
           </div>
 
+          {rowActionFeedback && (
+            <div
+              style={{
+                margin: '12px 20px 0',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: rowActionFeedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                color: rowActionFeedback.type === 'success' ? '#065f46' : '#991b1b',
+                border: `1px solid ${rowActionFeedback.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+                fontSize: '0.84rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {rowActionFeedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                <span>{rowActionFeedback.message}</span>
+              </div>
+              <button
+                onClick={() => setRowActionFeedback(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
           {problems.length === 0 ? (
             <div style={{ padding: '48px 24px', textAlign: 'center' }}>
               <BookOpen size={40} color="var(--text-tertiary)" style={{ margin: '0 auto 12px' }} />
@@ -723,13 +821,13 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
               <table className="custom-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '70px' }}>#</th>
+                    <th style={{ width: '60px' }}>#</th>
                     <th>Problem Title</th>
-                    <th style={{ width: '120px' }}>Difficulty</th>
-                    <th>Topics</th>
-                    <th style={{ width: '130px' }}>Test Cases</th>
-                    <th style={{ width: '140px' }}>Reference</th>
-                    <th style={{ width: '130px', textAlign: 'right' }}>Actions</th>
+                    <th style={{ width: '100px' }}>Difficulty</th>
+                    <th style={{ width: '180px' }}>Topics</th>
+                    <th style={{ width: '140px' }}>Test Cases</th>
+                    <th style={{ width: '150px' }}>Reference</th>
+                    <th style={{ width: '290px', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -741,11 +839,29 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                         onClick={() => setActiveLeetCodeProblem(problemInPackToProblemModel(p))}
                         title="Click to open Code Workspace"
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>{p.title}</span>
-                          <span style={{ fontSize: '0.72rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                            <Code2 size={12} />
-                          </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{p.title}</span>
+                            <span style={{ fontSize: '0.72rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                              <Code2 size={12} />
+                            </span>
+                          </div>
+                          {!p.is_verified && p.description && p.description.trim() !== p.title.trim() && (
+                            <span
+                              style={{
+                                fontSize: '0.74rem',
+                                color: 'var(--text-muted)',
+                                fontWeight: 400,
+                                maxWidth: '380px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={p.description}
+                            >
+                              {p.description}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td>
@@ -782,8 +898,18 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                         </div>
                       </td>
                       <td>
-                        <span style={{ fontWeight: 600 }}>{p.public_test_cases.length}</span> public,{' '}
-                        <span style={{ fontWeight: 600 }}>{p.hidden_test_cases.length}</span> hidden
+                        {p.is_verified ? (
+                          <span>
+                            <strong style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                              {p.public_test_cases.length + p.hidden_test_cases.length}
+                            </strong>{' '}
+                            cases ({p.public_test_cases.length} pub, {p.hidden_test_cases.length} hid)
+                          </span>
+                        ) : (
+                          <span style={{ color: '#d97706', fontSize: '0.78rem', fontWeight: 600 }}>
+                            ⚡ Not Generated
+                          </span>
+                        )}
                       </td>
                       <td>
                         {p.is_verified ? (
@@ -791,13 +917,112 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                             <CheckCircle2 size={14} /> Verified ✓
                           </span>
                         ) : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#e11d48', fontSize: '0.8rem', fontWeight: 600 }}>
-                            <AlertTriangle size={14} /> Unverified
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              color: '#b45309',
+                              backgroundColor: '#fef3c7',
+                              fontSize: '0.76rem',
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: '9999px',
+                            }}
+                          >
+                            <AlertTriangle size={12} /> Ready to Generate
                           </span>
                         )}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px' }}>
+                          {/* GENERATE / REGENERATE BUTTON SIDE OF EACH QUESTION */}
+                          <button
+                            onClick={async () => {
+                              const qText = (p.description && p.description.trim().length > 3)
+                                ? p.description.trim()
+                                : p.title;
+
+                              setGeneratingProblemId(p.number);
+                              setRowActionFeedback(null);
+
+                              try {
+                                const savedKey = localStorage.getItem('gemini_api_key') || undefined;
+                                const res = await generateSingleQuestion(week.id, {
+                                  question_text: qText,
+                                  problem_number: p.number,
+                                  replace_existing: true,
+                                  verify_with_reference: true,
+                                  provider: 'gemini',
+                                  model: 'gemini-3.8-flash',
+                                  api_key: savedKey,
+                                });
+
+                                if (res.status === 'success' && res.problem) {
+                                  const updated = res.problem;
+                                  setProblems((prev) =>
+                                    prev.map((item) => (item.number === p.number ? updated : item))
+                                  );
+                                  setRowActionFeedback({
+                                    number: p.number,
+                                    message: `P${p.number} successfully generated with 5 test cases & verified with GCC!`,
+                                    type: 'success',
+                                  });
+                                } else {
+                                  setRowActionFeedback({
+                                    number: p.number,
+                                    message: res.error || `Failed to generate P${p.number}`,
+                                    type: 'error',
+                                  });
+                                }
+                              } catch (err: any) {
+                                setRowActionFeedback({
+                                  number: p.number,
+                                  message: err.message || `Error generating P${p.number}`,
+                                  type: 'error',
+                                });
+                              } finally {
+                                setGeneratingProblemId(null);
+                              }
+                            }}
+                            disabled={generatingProblemId !== null || isGeneratingAllUnverified}
+                            className={`btn btn-sm ${!p.is_verified ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{
+                              background: !p.is_verified
+                                ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)'
+                                : undefined,
+                              borderColor: !p.is_verified ? 'transparent' : undefined,
+                              color: !p.is_verified ? '#ffffff' : 'var(--text-main)',
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 10px',
+                            }}
+                            title={
+                              p.is_verified
+                                ? `Regenerate P${p.number} with 5 test cases & GCC`
+                                : `Generate 5 diverse test cases & verified C code for P${p.number}`
+                            }
+                          >
+                            {generatingProblemId === p.number ? (
+                              <>
+                                <Loader2 size={13} className="spin" />
+                                <span>Generating...</span>
+                              </>
+                            ) : !p.is_verified ? (
+                              <>
+                                <Sparkles size={13} />
+                                <span>Generate</span>
+                              </>
+                            ) : (
+                              <>
+                                <RotateCw size={12} />
+                                <span>Regenerate</span>
+                              </>
+                            )}
+                          </button>
+
                           <button
                             onClick={() => setActiveLeetCodeProblem(problemInPackToProblemModel(p))}
                             className="btn btn-primary btn-sm"

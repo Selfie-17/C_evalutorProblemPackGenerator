@@ -20,6 +20,7 @@ import {
   generateProblemPack,
   generateFromQuestions,
   generateSingleQuestion,
+  addDraftQuestions,
   seedDefaultPack,
 } from '../services/api';
 import { ProblemInPack } from '../types';
@@ -215,6 +216,39 @@ export const GeneratePackModal: React.FC<Props> = ({
     }
   };
 
+  // Add Draft Questions Directly to Week Table
+  const handleAddQuestionsToTable = async () => {
+    const raw = questionsText.trim();
+    if (!raw && questionsList.length === 0) {
+      setError('Please paste or enter at least one laboratory question.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setProgressStatus('Adding questions to problem table...');
+
+    try {
+      const qTexts = questionsList.length > 0 ? questionsList.map((q) => q.text.trim()).filter(Boolean) : undefined;
+      const updatedProblems = await addDraftQuestions(weekId, {
+        raw_text: raw || undefined,
+        questions: qTexts,
+        replace_all: replaceAll,
+      });
+
+      onPackUpdated(updatedProblems);
+      setSuccessMsg(`Added ${updatedProblems.length} questions to the table! You can now generate them individually.`);
+      setTimeout(() => {
+        onClose();
+      }, 700);
+    } catch (err: any) {
+      setError(err.message || 'Failed to add questions to table.');
+    } finally {
+      setLoading(false);
+      setProgressStatus('');
+    }
+  };
+
   // Generate All Questions (Sequential loop to avoid context window explosion)
   const handleGenerateAllSequential = async () => {
     if (questionsList.length === 0) {
@@ -306,7 +340,7 @@ export const GeneratePackModal: React.FC<Props> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Sparkles size={20} color="var(--primary)" />
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>
-              Setup Problem Pack — Week {weekNumber}
+              Add Questions — Week {weekNumber}
             </h3>
           </div>
           <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ border: 'none', padding: '6px' }}>
@@ -687,6 +721,65 @@ export const GeneratePackModal: React.FC<Props> = ({
                     </label>
                   </div>
                 </div>
+
+                {/* Direct Action Banner: Add to Problem Table */}
+                <div
+                  style={{
+                    marginTop: '12px',
+                    padding: '12px 14px',
+                    backgroundColor: '#eef2ff',
+                    border: '1px solid #c7d2fe',
+                    borderRadius: 'var(--radius-md)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '10px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ListOrdered size={18} color="#4f46e5" />
+                    <div>
+                      <strong style={{ fontSize: '0.84rem', color: '#312e81', display: 'block' }}>
+                        Import Questions Directly to Problem Table
+                      </strong>
+                      <span style={{ fontSize: '0.74rem', color: '#4338ca' }}>
+                        Adds questions to your table where each row has a dedicated "⚡ Generate" button.
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddQuestionsToTable}
+                    disabled={loading || (!questionsText.trim() && questionsList.length === 0)}
+                    className="btn btn-primary"
+                    style={{
+                      background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                      border: 'none',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      fontSize: '0.84rem',
+                      boxShadow: '0 2px 4px rgba(99, 102, 241, 0.25)',
+                    }}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 size={14} className="spin" />
+                        <span>Adding to Table...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={14} />
+                        <span>+ Add Questions to Problem Table</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Extracted Questions List Header & Action Toolbar */}
@@ -1032,24 +1125,34 @@ export const GeneratePackModal: React.FC<Props> = ({
           </button>
 
           {mode === 'questions' && (
-            <button
-              type="button"
-              onClick={handleGenerateAllSequential}
-              disabled={isGeneratingAll || questionsList.length === 0}
-              className="btn btn-primary"
-            >
-              {isGeneratingAll ? (
-                <>
-                  <Loader2 size={16} className="spin" />
-                  <span>Generating Questions...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={16} />
-                  <span>Generate All Questions ({questionsList.length})</span>
-                </>
-              )}
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleAddQuestionsToTable}
+                disabled={loading || isGeneratingAll || (!questionsText.trim() && questionsList.length === 0)}
+                className="btn btn-primary"
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  border: 'none',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    <span>Adding to Table...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus size={16} />
+                    <span>Add Questions to Table ({questionsList.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
           )}
 
           {mode === 'seed' && (

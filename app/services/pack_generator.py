@@ -15,6 +15,7 @@ from app.database.db import (
     update_week,
 )
 from app.models import (
+    AddDraftQuestionsRequest,
     DifficultyEnum,
     GeneratedProblemSchema,
     GenerateFromQuestionsRequest,
@@ -806,3 +807,71 @@ Convert this exact question into a complete, standard LeetCode-style C programmi
             status="error",
             error=f"LLM generation failed: {str(e)}",
         )
+
+
+def add_draft_questions_to_week(
+    week_id: str,
+    request: AddDraftQuestionsRequest,
+) -> List[ProblemInPack]:
+    """
+    Save questions directly as draft problem statements into the week table.
+    Each problem can then be generated individually using the 'Generate' button beside it.
+    """
+    week = get_week(week_id)
+    if not week:
+        return []
+
+    questions = list(request.questions)
+    if request.raw_text:
+        for q in parse_questions_from_text(request.raw_text):
+            if q not in questions:
+                questions.append(q)
+
+    if not questions:
+        return []
+
+    if request.replace_all:
+        delete_week_problems(week_id)
+        next_num = 1
+    else:
+        existing = get_week_problems(week_id)
+        next_num = max({p.number for p in existing}, default=0) + 1
+
+    for q_text in questions:
+        prob_num = next_num
+        next_num += 1
+        short_title = q_text.split("\n")[0].strip()
+        if len(short_title) > 50:
+            short_title = short_title[:47] + "..."
+
+        prob = ProblemInPack(
+            id=f"{week_id}-p{prob_num}",
+            week_id=week_id,
+            number=prob_num,
+            title=short_title if len(short_title) > 3 else f"Problem {prob_num}",
+            slug=f"problem-{prob_num}",
+            description=q_text,
+            difficulty="Easy",
+            topics=["Lab Exercise"],
+            constraints=["Standard constraints apply."],
+            hints=["Click Generate to synthesize full problem specification, test cases, and solution."],
+            time_limit=2.0,
+            input_format="Standard input stream.",
+            output_format="Standard output format.",
+            public_test_cases=[
+                TestCaseSchema(input="1\n", expected_output="1\n")
+            ],
+            hidden_test_cases=[
+                TestCaseSchema(input="2\n", expected_output="2\n")
+            ],
+            reference_solution_c=(
+                f"#include <stdio.h>\n\n/* Question: {q_text[:60]} */\nint main() {{\n    return 0;\n}}\n"
+            ),
+            is_verified=False,
+            verification_report=None,
+        )
+        save_problem(prob)
+
+    update_week(week_id=week_id, status="ready")
+    return get_week_problems(week_id)
+

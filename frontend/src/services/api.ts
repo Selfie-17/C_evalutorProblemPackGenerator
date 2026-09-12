@@ -180,6 +180,22 @@ export async function generateSingleQuestion(
   return handleJsonResponse(res, 'Failed to generate single problem');
 }
 
+export async function addDraftQuestions(
+  weekId: string,
+  options: {
+    raw_text?: string;
+    questions?: string[];
+    replace_all?: boolean;
+  }
+): Promise<ProblemInPack[]> {
+  const res = await fetch(`${BASE_URL}/api/weeks/${weekId}/add-draft-questions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+  return handleJsonResponse(res, 'Failed to add draft questions');
+}
+
 export async function validateSubmissionZip(
   weekId: string,
   file: File,
