@@ -52,9 +52,9 @@ RULES:
    - constraints: list of strings tailored strictly to the problem (e.g. for years: ["1 <= N <= 100", "1 <= Year <= 100000"]; for arrays: ["1 <= N <= 1000", "-10^4 <= A[i] <= 10^4"]).
    - time_limit_seconds: float (default 2.0)
    - memory_limit_mb: integer (default 256)
-   - public_test_cases: list of 5 to 8 {"input": "...", "expected_output": "..."} covering normal and basic example cases.
-   - hidden_test_cases: list of 15 to 25 {"input": "...", "expected_output": "..."} covering edge cases, boundary values, stress inputs, and trap cases within valid domain limits.
-   - reference_solution_c: MUST be a single string containing the complete C code (e.g. "#include <stdio.h>\\nint main() { ... }"). Do NOT wrap it inside an object/dict like {"code": "..."}.
+   - public_test_cases: list of exactly 2 {"input": "...", "expected_output": "..."} covering normal and basic example cases.
+   - hidden_test_cases: list of exactly 3 {"input": "...", "expected_output": "..."} covering edge cases, boundary values (e.g. 0, negatives, min/max limits), and trap cases where naive or normal code fails. Total test cases MUST be exactly 5.
+   - reference_solution_c: MUST be a single string containing the complete C code (e.g. "#include <stdio.h>\nint main() { ... }"). Do NOT wrap it inside an object/dict like {"code": "..."}.
    - hints: list of helpful strings
    - follow_up: optional string or null
 4. Domain Validity & Sanity:

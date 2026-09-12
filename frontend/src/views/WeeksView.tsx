@@ -104,7 +104,7 @@ export const WeeksView: React.FC<Props> = ({ onSelectWeek, onOpenNewWeek, onDele
                   </td>
                   <td>
                     <span style={{ fontWeight: 600 }}>{w.problem_count}</span>
-                    <span style={{ color: 'var(--text-muted)' }}> / 10 problems</span>
+                    <span style={{ color: 'var(--text-muted)' }}> {w.problem_count === 1 ? 'problem' : 'problems'}</span>
                   </td>
                   <td>
                     <span style={{ fontWeight: 600 }}>{w.student_count}</span>

@@ -154,6 +154,32 @@ export async function generateFromQuestions(
   return handleJsonResponse(res, 'Failed to generate problems from questions');
 }
 
+export async function generateSingleQuestion(
+  weekId: string,
+  options: {
+    question_text: string;
+    problem_number?: number;
+    replace_existing?: boolean;
+    difficulty?: string;
+    verify_with_reference?: boolean;
+    provider?: string;
+    model?: string;
+    api_key?: string;
+  }
+): Promise<{
+  status: string;
+  problem?: ProblemInPack;
+  verification_report?: any;
+  error?: string;
+}> {
+  const res = await fetch(`${BASE_URL}/api/weeks/${weekId}/generate-single-question`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+  return handleJsonResponse(res, 'Failed to generate single problem');
+}
+
 export async function validateSubmissionZip(
   weekId: string,
   file: File,

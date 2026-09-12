@@ -146,7 +146,7 @@ export const StudentDetailModal: React.FC<Props> = ({ weekId, studentId, onClose
                 {/* Submissions Table P1..P10 */}
                 <div>
                   <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '10px', textTransform: 'uppercase' }}>
-                    Program Results (P1 - P10)
+                    Program Results (P1 - P{data.submissions.length})
                   </h4>
                   <div className="table-container">
                     <table className="custom-table">

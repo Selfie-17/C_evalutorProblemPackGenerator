@@ -625,6 +625,41 @@ class GeneratePackRequest(BaseModel):
     api_key: Optional[str] = Field(default=None, description="Optional API key for Gemini")
 
 
+class GenerateSingleQuestionRequest(BaseModel):
+    question_text: str = Field(
+        ...,
+        description="Exact laboratory question provided by the instructor",
+        min_length=3,
+    )
+    problem_number: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Optional problem number (e.g. 1 for P1, 2 for P2). If omitted, assigns next sequence number.",
+    )
+    replace_existing: bool = Field(
+        default=False,
+        description="If True, overwrite existing problem with this number in the week",
+    )
+    difficulty: Optional[str] = Field(
+        default=None,
+        description="Optional difficulty override ('Easy', 'Medium', 'Hard'); defaults to model assessment",
+    )
+    verify_with_reference: bool = Field(
+        default=True,
+        description="Verify and auto-calibrate reference C solution against 5 test cases with GCC",
+    )
+    provider: Optional[str] = Field(default="gemini", description="LLM provider: 'gemini' or 'ollama'")
+    model: Optional[str] = Field(default="gemini-3.8-flash", description="Model override")
+    api_key: Optional[str] = Field(default=None, description="Optional Gemini API key")
+
+
+class GenerateSingleQuestionResponse(BaseModel):
+    status: str  # "success" or "error"
+    problem: Optional[ProblemInPack] = None
+    verification_report: Optional[VerificationReport] = None
+    error: Optional[str] = None
+
+
 class GenerateFromQuestionsRequest(BaseModel):
     raw_text: Optional[str] = Field(
         default=None,

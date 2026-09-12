@@ -903,7 +903,7 @@ export function ProblemPackView() {
               Problems in Pack ({pack.problems.length})
             </h3>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Click any problem or "LeetCode Workspace" to test and write code against test cases
+              Click any problem or "View Code" to test and write code against test cases
             </span>
           </div>
 
@@ -1054,7 +1054,7 @@ export function ProblemPackView() {
                       }}
                     >
                       <Code2 size={15} />
-                      <span>LeetCode Workspace</span>
+                      <span>View Code</span>
                     </button>
                   </div>
                 </div>

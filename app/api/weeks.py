@@ -16,6 +16,8 @@ from app.models import (
     GenerateFromQuestionsRequest,
     GeneratePackRequest,
     GeneratePackResponse,
+    GenerateSingleQuestionRequest,
+    GenerateSingleQuestionResponse,
     ProblemInPack,
     WeekCreateRequest,
     WeekResponse,
@@ -24,6 +26,7 @@ from app.models import (
 from app.services.export import generate_problem_pack_zip
 from app.services.pack_generator import (
     generate_problems_from_exact_questions,
+    generate_single_problem_from_exact_question,
     generate_week_problem_pack,
     seed_default_pack_for_week,
 )
@@ -150,6 +153,19 @@ async def generate_from_questions(week_id: str, request: GenerateFromQuestionsRe
     if not week:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Week '{week_id}' not found.")
     response = await generate_problems_from_exact_questions(week_id=week_id, request=request)
+    return response
+
+
+@router.post("/{week_id}/generate-single-question", response_model=GenerateSingleQuestionResponse)
+async def generate_single_question(week_id: str, request: GenerateSingleQuestionRequest):
+    """
+    Generate, verify with GCC, and save a single LeetCode-style C problem from an exact instructor question.
+    Generates exactly 5 diverse test cases (2 public, 3 hidden edge/failure cases).
+    """
+    week = get_week(week_id)
+    if not week:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Week '{week_id}' not found.")
+    response = await generate_single_problem_from_exact_question(week_id=week_id, request=request)
     return response
 
 

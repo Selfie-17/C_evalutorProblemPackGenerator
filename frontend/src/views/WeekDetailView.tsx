@@ -527,7 +527,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
           className={`tab-btn ${activeTab === 'problems' ? 'active' : ''}`}
         >
           <BookOpen size={16} />
-          <span>Problem Pack ({problems.length}/10)</span>
+          <span>Problem Pack ({problems.length})</span>
         </button>
 
         <button
@@ -572,7 +572,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
             <div>
               <h3 className="card-title">Laboratory Problem Pack (Week {week.week_number})</h3>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                LeetCode-style C problems with verified reference solutions, test cases, and GCC runner
+                C programming laboratory problems with verified reference solutions, test cases, and GCC runner
               </p>
             </div>
 
@@ -739,7 +739,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                       <td
                         style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--text)' }}
                         onClick={() => setActiveLeetCodeProblem(problemInPackToProblemModel(p))}
-                        title="Click to open LeetCode Workspace"
+                        title="Click to open Code Workspace"
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>{p.title}</span>
@@ -811,10 +811,10 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                               gap: '4px',
                               padding: '4px 10px',
                             }}
-                            title="Open interactive LeetCode Workspace to test with GCC"
+                            title="Open interactive Code Workspace to test with GCC"
                           >
                             <Code2 size={13} />
-                            <span>LeetCode</span>
+                            <span>View Code</span>
                           </button>
                           <button onClick={() => setSelectedProblem(p)} className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }}>
                             <Eye size={13} />
@@ -846,7 +846,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
             <div>
               <h3 className="card-title">Upload Student Submissions ZIP</h3>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                Upload an archive formatted as <code>student_id/p1.c ... p10.c</code> for safe inspection and missing file validation
+                Upload an archive formatted as <code>student_id/p1.c ... p{problems.length || 'N'}.c</code> for safe inspection and missing file validation
               </p>
             </div>
           </div>
@@ -868,7 +868,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                   Target Class Section (1 of 6 sections)
                 </label>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  The problem pack (P1..P10) is identical across all 6 class sections. Choose the section for this upload batch.
+                  The problem pack (P1..P{problems.length || 'N'}) is identical across all 6 class sections. Choose the section for this upload batch.
                 </p>
               </div>
               <span
@@ -944,7 +944,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
               Select submissions ZIP for {activeSection}
             </h4>
             <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              Files will be scanned safely with anti-traversal protection, tagged to {activeSection}, and validated against P1..P10
+              Files will be scanned safely with anti-traversal protection, tagged to {activeSection}, and validated against P1..P{problems.length || 'N'}
             </p>
 
             <input
@@ -1057,7 +1057,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                     <tr>
                       <th style={{ width: '140px' }}>Student ID</th>
                       <th style={{ width: '130px' }}>Files Found</th>
-                      <th>Problem Checklist (P1 → P10)</th>
+                      <th>Problem Checklist (P1 → P{validationReport.students[0]?.programs.length || problems.length || 'N'})</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1066,7 +1066,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                         <td style={{ fontWeight: 700 }}>{st.student_id}</td>
                         <td>
                           <span style={{ fontWeight: 600, color: st.missing_count > 0 ? '#dc2626' : '#059669' }}>
-                            {st.total_found} / 10
+                            {st.total_found} / {st.programs.length || problems.length || 10}
                           </span>
                         </td>
                         <td>
@@ -1257,7 +1257,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                   className={`btn btn-sm ${studentFilter === filterVal ? 'btn-primary' : 'btn-secondary'}`}
                 >
                   {filterVal === 'all' && 'All Statuses'}
-                  {filterVal === 'perfect' && '100% Solved (10/10)'}
+                  {filterVal === 'perfect' && (problems.length > 0 ? `100% Solved (${problems.length}/${problems.length})` : '100% Solved')}
                   {filterVal === 'has_ce' && 'Has Compilation Error'}
                   {filterVal === 'has_wa' && 'Has Wrong Answer'}
                   {filterVal === 'missing' && 'Missing Files'}
@@ -1317,7 +1317,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                       </td>
                       <td>
                         <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{st.solved_count}</span>
-                        <span style={{ color: 'var(--text-muted)' }}> / 10</span>
+                        <span style={{ color: 'var(--text-muted)' }}> / {problems.length || 10}</span>
                       </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

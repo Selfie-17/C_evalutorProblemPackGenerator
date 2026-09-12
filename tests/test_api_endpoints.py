@@ -107,3 +107,20 @@ def test_health_endpoint_get_and_head():
     head_resp = client.head("/health")
     assert head_resp.status_code == 200
 
+
+def test_generate_single_question_nonexistent_week():
+    resp = client.post(
+        "/api/weeks/week-999-not-found/generate-single-question",
+        json={"question_text": "Write a C program to check leap year."},
+    )
+    assert resp.status_code == 404
+
+
+def test_generate_single_question_validation_short():
+    resp = client.post(
+        "/api/weeks/week-01/generate-single-question",
+        json={"question_text": "a"},  # < 3 chars triggers validation error
+    )
+    assert resp.status_code == 422
+
+

@@ -7,6 +7,7 @@ from typing import List, Optional
 from app.config import GEMINI_MODEL
 
 from app.database.db import (
+    delete_single_problem,
     delete_week_problems,
     get_week,
     get_week_problems,
@@ -20,6 +21,8 @@ from app.models import (
     GeneratePackRequest,
     GeneratePackResponse,
     GenerateProblemRequest,
+    GenerateSingleQuestionRequest,
+    GenerateSingleQuestionResponse,
     ProblemInPack,
     TestCaseSchema,
     VerificationReport,
@@ -595,9 +598,10 @@ Convert this exact question into a complete, standard LeetCode-style C programmi
 - The solution MUST be written in C using standard input (scanf) and standard output (printf).
 - Include precise input_format and output_format.
 - Determine difficulty ("Easy", "Medium", or "Hard") based on the problem's conceptual and algorithmic complexity.
-- Provide 5 to 8 public test cases with stdin input and exact stdout output.
-- Provide 15 to 25 hidden test cases covering edge cases (boundary limits, zeros, negative numbers, large stress cases, and trap cases).
-- Provide a complete, bug-free C reference solution (reference_solution_c).
+- Provide EXACTLY 5 diverse test cases in total:
+  * Exactly 2 public_test_cases: standard/sample cases demonstrating typical valid inputs and expected formats.
+  * Exactly 3 hidden_test_cases: edge cases, boundary limits (e.g. 0, negatives, min/max allowed values), and trap inputs where naive or normal student code fails (e.g. ties, off-by-one, empty/single element, integer overflow).
+- Provide a complete, bug-free C reference solution (reference_solution_c) that passes all 5 test cases.
 """
         gen_req = GenerateProblemRequest(
             prompt=prompt,
@@ -694,3 +698,111 @@ Convert this exact question into a complete, standard LeetCode-style C programmi
         problems=problems,
         errors=errors,
     )
+
+
+async def generate_single_problem_from_exact_question(
+    week_id: str,
+    request: GenerateSingleQuestionRequest,
+) -> GenerateSingleQuestionResponse:
+    """
+    Convert a single instructor question into a verified C problem with exactly 5 test cases
+    (2 public, 3 hidden edge/trap cases) and save to SQLite.
+    """
+    week = get_week(week_id)
+    if not week:
+        return GenerateSingleQuestionResponse(
+            status="error",
+            error=f"Week '{week_id}' was not found.",
+        )
+
+    q_text = request.question_text.strip()
+    if not q_text:
+        return GenerateSingleQuestionResponse(
+            status="error",
+            error="Question text cannot be empty.",
+        )
+
+    existing_problems = get_week_problems(week_id)
+    existing_by_num = {p.number: p for p in existing_problems}
+
+    if request.problem_number is not None:
+        prob_num = request.problem_number
+        if prob_num in existing_by_num and request.replace_existing:
+            delete_single_problem(week_id, prob_num)
+    else:
+        existing_numbers = set(existing_by_num.keys())
+        prob_num = max(existing_numbers, default=0) + 1
+
+    model_to_use = request.model or GEMINI_MODEL
+
+    prompt = f"""EXACT QUESTION GIVEN BY INSTRUCTOR:
+"{q_text}"
+
+TASK:
+Convert this exact question into a complete, standard LeetCode-style C programming problem.
+- Problem title and description MUST directly solve this exact question.
+- The solution MUST be written in C using standard input (scanf) and standard output (printf).
+- Include precise input_format and output_format.
+- Determine difficulty ("Easy", "Medium", or "Hard") based on algorithmic and conceptual complexity.
+- Provide EXACTLY 5 diverse test cases in total:
+  * Exactly 2 public_test_cases: standard/sample cases demonstrating typical valid inputs and expected formats.
+  * Exactly 3 hidden_test_cases: edge cases, boundary limits (e.g. 0, negatives, min/max allowed values), and trap inputs where naive or normal student code fails (e.g. ties, off-by-one, empty/single element, integer overflow).
+- Provide a complete, bug-free C reference solution (reference_solution_c) that handles all 5 test cases correctly.
+"""
+
+    gen_req = GenerateProblemRequest(
+        prompt=prompt,
+        difficulty=DifficultyEnum(request.difficulty) if request.difficulty in ["Easy", "Medium", "Hard"] else None,
+        topics=["Lab Exercise"],
+        verify_with_reference=request.verify_with_reference,
+        provider=request.provider or "gemini",
+        model=model_to_use,
+        api_key=request.api_key,
+    )
+
+    try:
+        gen_resp = await generate_problem_from_llm(gen_req)
+        if gen_resp.problem is not None:
+            p_schema = gen_resp.problem
+            is_verified = (
+                gen_resp.verification_report.all_matched
+                if gen_resp.verification_report
+                else (gen_resp.status == "success")
+            )
+            prob = ProblemInPack(
+                id=f"{week_id}-p{prob_num}",
+                week_id=week_id,
+                number=prob_num,
+                title=p_schema.title,
+                slug=f"{p_schema.slug}-{prob_num}",
+                description=p_schema.description,
+                difficulty=p_schema.difficulty or "Easy",
+                topics=p_schema.topics or ["Lab Exercise"],
+                constraints=p_schema.constraints,
+                hints=p_schema.hints,
+                time_limit=p_schema.time_limit_seconds,
+                input_format=p_schema.input_format,
+                output_format=p_schema.output_format,
+                public_test_cases=p_schema.public_test_cases,
+                hidden_test_cases=p_schema.hidden_test_cases,
+                reference_solution_c=p_schema.reference_solution_c,
+                is_verified=is_verified,
+                verification_report=gen_resp.verification_report,
+            )
+            save_problem(prob)
+            update_week(week_id=week_id, status="ready")
+            return GenerateSingleQuestionResponse(
+                status="success",
+                problem=prob,
+                verification_report=gen_resp.verification_report,
+            )
+        else:
+            return GenerateSingleQuestionResponse(
+                status="error",
+                error=gen_resp.error or "Failed to generate problem from question.",
+            )
+    except Exception as e:
+        return GenerateSingleQuestionResponse(
+            status="error",
+            error=f"LLM generation failed: {str(e)}",
+        )

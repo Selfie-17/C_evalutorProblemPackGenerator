@@ -3,7 +3,6 @@ import {
   X,
   Sparkles,
   BookOpen,
-  Check,
   ListOrdered,
   Cpu,
   Key,
@@ -11,8 +10,18 @@ import {
   CheckCircle2,
   FileText,
   Loader2,
+  Trash2,
+  RotateCw,
+  Plus,
+  Play,
+  Check,
 } from 'lucide-react';
-import { generateProblemPack, generateFromQuestions, seedDefaultPack } from '../services/api';
+import {
+  generateProblemPack,
+  generateFromQuestions,
+  generateSingleQuestion,
+  seedDefaultPack,
+} from '../services/api';
 import { ProblemInPack } from '../types';
 
 interface Props {
@@ -21,6 +30,15 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onPackUpdated: (problems: ProblemInPack[]) => void;
+}
+
+export interface QuestionItem {
+  id: string;
+  number: number;
+  text: string;
+  status: 'idle' | 'generating' | 'success' | 'error';
+  problem?: ProblemInPack;
+  error?: string;
 }
 
 const SAMPLE_QUESTIONS = `1. Write a C program to find the largest of two numbers.
@@ -36,7 +54,8 @@ export const GeneratePackModal: React.FC<Props> = ({
   onPackUpdated,
 }) => {
   const [mode, setMode] = useState<'questions' | 'seed' | 'ai'>('questions');
-  const [questionsText, setQuestionsText] = useState('');
+  const [questionsText, setQuestionsText] = useState(SAMPLE_QUESTIONS);
+  const [questionsList, setQuestionsList] = useState<QuestionItem[]>([]);
   const [replaceAll, setReplaceAll] = useState(false);
   const [topicsInput, setTopicsInput] = useState('loops, conditions, arrays, functions, math');
   const [verifyWithReference, setVerifyWithReference] = useState(true);
@@ -48,9 +67,51 @@ export const GeneratePackModal: React.FC<Props> = ({
   const [apiKey, setApiKey] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [progressStatus, setProgressStatus] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Helper to parse questions from raw text
+  const parseQuestionsFromRawText = (rawText: string): QuestionItem[] => {
+    const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return [];
+    const qPattern = /^(?:(?:Q|p|problem)?\s*\d+[\.\)\:\-]|\[\d+\])\s*/i;
+
+    const extracted: string[] = [];
+    let currentQ: string[] = [];
+
+    for (const line of lines) {
+      if (qPattern.test(line)) {
+        if (currentQ.length > 0) {
+          extracted.push(currentQ.join(' ').trim());
+          currentQ = [];
+        }
+        const cleaned = line.replace(qPattern, '').trim();
+        extracted.push(cleaned || line);
+      } else {
+        currentQ.push(line);
+      }
+    }
+    if (currentQ.length > 0) {
+      extracted.push(currentQ.join(' ').trim());
+    }
+
+    const finalTexts = extracted.length > 0 ? extracted : lines;
+    return finalTexts.map((q, idx) => ({
+      id: `q-${idx + 1}-${Date.now()}`,
+      number: idx + 1,
+      text: q,
+      status: 'idle',
+    }));
+  };
+
+  // Initial parse of default sample questions
+  useEffect(() => {
+    if (questionsList.length === 0 && questionsText) {
+      setQuestionsList(parseQuestionsFromRawText(questionsText));
+    }
+  }, []);
 
   // Load saved Gemini API Key from localStorage
   useEffect(() => {
@@ -65,29 +126,124 @@ export const GeneratePackModal: React.FC<Props> = ({
     localStorage.setItem('gemini_api_key', val);
   };
 
-  // Helper to count detected questions in the text
-  const detectQuestionCount = (text: string): number => {
-    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-    if (lines.length === 0) return 0;
-    const qPattern = /^(?:(?:Q|p|problem)?\s*\d+[\.\)\:\-]|\[\d+\])\s*/i;
-    let count = 0;
-    for (const line of lines) {
-      if (qPattern.test(line)) {
-        count++;
-      }
-    }
-    return count > 0 ? count : lines.length;
+  const handleParseQuestions = () => {
+    const parsed = parseQuestionsFromRawText(questionsText);
+    setQuestionsList(parsed);
+    setError('');
   };
 
-  const detectedQuestionsCount = detectQuestionCount(questionsText);
+  const handleQuestionTextChange = (index: number, newText: string) => {
+    setQuestionsList((prev) =>
+      prev.map((q, idx) => (idx === index ? { ...q, text: newText } : q))
+    );
+  };
+
+  const handleAddQuestion = () => {
+    const nextNum = questionsList.length + 1;
+    setQuestionsList((prev) => [
+      ...prev,
+      {
+        id: `q-${nextNum}-${Date.now()}`,
+        number: nextNum,
+        text: `Write a C program to `,
+        status: 'idle',
+      },
+    ]);
+  };
+
+  const handleRemoveQuestion = (index: number) => {
+    setQuestionsList((prev) =>
+      prev
+        .filter((_, idx) => idx !== index)
+        .map((q, idx) => ({ ...q, number: idx + 1 }))
+    );
+  };
 
   if (!isOpen) return null;
+
+  // Single Question Generation Handler
+  const handleGenerateSingle = async (index: number) => {
+    const item = questionsList[index];
+    if (!item || !item.text.trim()) {
+      setError(`Question ${index + 1} text is empty.`);
+      return;
+    }
+
+    setError('');
+    setQuestionsList((prev) =>
+      prev.map((q, idx) =>
+        idx === index ? { ...q, status: 'generating', error: undefined } : q
+      )
+    );
+
+    try {
+      const res = await generateSingleQuestion(weekId, {
+        question_text: item.text.trim(),
+        problem_number: item.number,
+        replace_existing: replaceAll || true,
+        verify_with_reference: verifyWithReference,
+        provider,
+        model: provider === 'gemini' ? geminiModel : ollamaModel,
+        api_key: apiKey.trim() || undefined,
+      });
+
+      if (res.status === 'success' && res.problem) {
+        const generated = res.problem;
+        setQuestionsList((prev) =>
+          prev.map((q, idx) =>
+            idx === index ? { ...q, status: 'success', problem: generated } : q
+          )
+        );
+        onPackUpdated([generated]);
+      } else {
+        setQuestionsList((prev) =>
+          prev.map((q, idx) =>
+            idx === index
+              ? { ...q, status: 'error', error: res.error || 'Generation failed' }
+              : q
+          )
+        );
+      }
+    } catch (err: any) {
+      setQuestionsList((prev) =>
+        prev.map((q, idx) =>
+          idx === index
+            ? { ...q, status: 'error', error: err.message || 'Generation error' }
+            : q
+        )
+      );
+    }
+  };
+
+  // Generate All Questions (Sequential loop to avoid context window explosion)
+  const handleGenerateAllSequential = async () => {
+    if (questionsList.length === 0) {
+      setError('Please paste or enter questions first.');
+      return;
+    }
+
+    setIsGeneratingAll(true);
+    setError('');
+    setSuccessMsg('');
+
+    for (let i = 0; i < questionsList.length; i++) {
+      if (questionsList[i].status === 'success') continue;
+      setProgressStatus(`Generating Q${i + 1} of ${questionsList.length}...`);
+      await handleGenerateSingle(i);
+      // Brief pause between calls to respect rate limits
+      await new Promise((r) => setTimeout(r, 800));
+    }
+
+    setIsGeneratingAll(false);
+    setProgressStatus('');
+    setSuccessMsg('Completed generation of questions!');
+  };
 
   const handleSeed = async () => {
     setLoading(true);
     setError('');
     setSuccessMsg('');
-    setProgressStatus('Seeding standard 10 curriculum problems...');
+    setProgressStatus('Seeding standard curriculum problems...');
     try {
       const problems = await seedDefaultPack(weekId);
       setSuccessMsg(`Successfully seeded ${problems.length} verified problems for Week ${weekNumber}!`);
@@ -103,55 +259,11 @@ export const GeneratePackModal: React.FC<Props> = ({
     }
   };
 
-  const handleGenerateFromQuestions = async () => {
-    if (!questionsText.trim()) {
-      setError('Please enter at least one question or click "Load Sample Questions".');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    setSuccessMsg('');
-    setProgressStatus(
-      provider === 'gemini'
-        ? 'Calling Gemini & compiling reference C solutions with GCC...'
-        : 'Querying local Ollama (qwen2.5-coder:3b) & compiling with GCC...'
-    );
-
-    try {
-      const res = await generateFromQuestions(weekId, {
-        raw_text: questionsText,
-        verify_with_reference: verifyWithReference,
-        provider,
-        model: provider === 'gemini' ? geminiModel : ollamaModel,
-        api_key: apiKey.trim() || undefined,
-        replace_all: replaceAll,
-      });
-
-      if (res.status === 'success' && res.problems.length > 0) {
-        setSuccessMsg(
-          `Successfully generated ${res.total_generated} problems (${res.total_verified} verified with GCC)!`
-        );
-        onPackUpdated(res.problems);
-        setTimeout(() => {
-          onClose();
-        }, 1200);
-      } else {
-        setError(res.errors.join(', ') || 'Failed to generate problems from questions.');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Generation failed. Check your API key or Ollama connection.');
-    } finally {
-      setLoading(false);
-      setProgressStatus('');
-    }
-  };
-
   const handleGenerateAI = async () => {
     setLoading(true);
     setError('');
     setSuccessMsg('');
-    setProgressStatus('Generating 10 problems & compiling reference solutions...');
+    setProgressStatus('Generating problems & compiling reference solutions...');
     try {
       const topics = topicsInput.split(',').map((t) => t.trim()).filter(Boolean);
       const res = await generateProblemPack(weekId, {
@@ -181,11 +293,13 @@ export const GeneratePackModal: React.FC<Props> = ({
     }
   };
 
+  const successfulCount = questionsList.filter((q) => q.status === 'success').length;
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="modal-card"
-        style={{ maxWidth: '680px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        style={{ maxWidth: '820px', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
@@ -269,7 +383,7 @@ export const GeneratePackModal: React.FC<Props> = ({
                 <span>From Exact Questions</span>
               </div>
               <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                Paste your laboratory questions directly
+                Paste questions & generate each with 5 edge-case test cases
               </p>
             </button>
 
@@ -301,7 +415,7 @@ export const GeneratePackModal: React.FC<Props> = ({
                 <span>Quick Seed</span>
               </div>
               <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                10 pre-verified standard curriculum problems
+                Pre-verified standard curriculum problems
               </p>
             </button>
 
@@ -338,25 +452,25 @@ export const GeneratePackModal: React.FC<Props> = ({
             </button>
           </div>
 
-          {/* AI Engine & API Key Configuration (for 'questions' and 'ai' modes) */}
+          {/* AI Engine & API Key Configuration */}
           {(mode === 'questions' || mode === 'ai') && (
             <div
               style={{
                 backgroundColor: 'var(--bg-subtle)',
-                padding: '14px 16px',
+                padding: '12px 16px',
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px',
+                gap: '10px',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Cpu size={14} /> AI Generation Engine
                 </span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Generates test cases & verifies reference C code
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  Generates 5 targeted test cases & compiles C reference solution
                 </span>
               </div>
 
@@ -411,7 +525,7 @@ export const GeneratePackModal: React.FC<Props> = ({
               {provider === 'gemini' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '10px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '3px' }}>
                       <Key size={12} style={{ display: 'inline', marginRight: '4px' }} />
                       Gemini API Key (leave empty if set in .env)
                     </label>
@@ -422,17 +536,17 @@ export const GeneratePackModal: React.FC<Props> = ({
                       placeholder="Enter Gemini API key..."
                       style={{
                         width: '100%',
-                        padding: '8px 12px',
+                        padding: '7px 10px',
                         borderRadius: 'var(--radius-sm)',
                         border: '1px solid var(--border)',
-                        fontSize: '0.84rem',
+                        fontSize: '0.82rem',
                         backgroundColor: 'white',
                       }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '3px' }}>
                       Gemini Model
                     </label>
                     <select
@@ -440,10 +554,10 @@ export const GeneratePackModal: React.FC<Props> = ({
                       onChange={(e) => setGeminiModel(e.target.value)}
                       style={{
                         width: '100%',
-                        padding: '8px 10px',
+                        padding: '7px 10px',
                         borderRadius: 'var(--radius-sm)',
                         border: '1px solid var(--border)',
-                        fontSize: '0.84rem',
+                        fontSize: '0.82rem',
                         backgroundColor: 'white',
                       }}
                     >
@@ -457,7 +571,7 @@ export const GeneratePackModal: React.FC<Props> = ({
                 </div>
               ) : (
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '3px' }}>
                     Ollama Model Name (runs on localhost:11434)
                   </label>
                   <input
@@ -467,10 +581,10 @@ export const GeneratePackModal: React.FC<Props> = ({
                     placeholder="qwen2.5-coder:3b"
                     style={{
                       width: '100%',
-                      padding: '8px 12px',
+                      padding: '7px 10px',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--border)',
-                      fontSize: '0.84rem',
+                      fontSize: '0.82rem',
                       backgroundColor: 'white',
                     }}
                   />
@@ -481,97 +595,356 @@ export const GeneratePackModal: React.FC<Props> = ({
 
           {/* MODE 1: FROM EXACT QUESTIONS */}
           {mode === 'questions' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <label style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                  Paste Your Exact Laboratory Questions
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setQuestionsText(SAMPLE_QUESTIONS)}
-                  className="btn btn-secondary btn-sm"
-                  style={{ fontSize: '0.74rem', padding: '3px 8px' }}
-                >
-                  <FileText size={12} />
-                  <span>Load Sample Questions</span>
-                </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Paste Raw Text Box */}
+              <div
+                style={{
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px 14px',
+                  backgroundColor: 'var(--bg-subtle)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                    Paste Your Exact Laboratory Questions
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuestionsText(SAMPLE_QUESTIONS);
+                        setQuestionsList(parseQuestionsFromRawText(SAMPLE_QUESTIONS));
+                      }}
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '0.74rem', padding: '3px 8px' }}
+                    >
+                      <FileText size={12} />
+                      <span>Load Sample</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleParseQuestions}
+                      className="btn btn-primary btn-sm"
+                      style={{ fontSize: '0.74rem', padding: '3px 10px' }}
+                    >
+                      <Sparkles size={12} />
+                      <span>Parse Questions List</span>
+                    </button>
+                  </div>
+                </div>
+
+                <textarea
+                  value={questionsText}
+                  onChange={(e) => setQuestionsText(e.target.value)}
+                  placeholder={`1. Write a C program to find the largest of two numbers.\n2. Write a C program to check whether a given number is positive, negative, or zero.\n3. Write a C program to find the factorial of a number using a loop.`}
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    fontSize: '0.84rem',
+                    fontFamily: 'var(--font-mono)',
+                    lineHeight: '1.4',
+                    resize: 'vertical',
+                    backgroundColor: 'white',
+                  }}
+                />
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    Each question will be generated individually with <strong>5 diverse test cases</strong> (2 public + 3 hidden edge/failure cases).
+                  </span>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={verifyWithReference}
+                        onChange={(e) => setVerifyWithReference(e.target.checked)}
+                      />
+                      <span>Verify with GCC</span>
+                    </label>
+
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        color: replaceAll ? '#dc2626' : 'var(--text-secondary)',
+                      }}
+                      title="If checked, problems overwrite existing ones in this week"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={replaceAll}
+                        onChange={(e) => setReplaceAll(e.target.checked)}
+                      />
+                      <span>Replace existing</span>
+                    </label>
+                  </div>
+                </div>
               </div>
 
-              <textarea
-                value={questionsText}
-                onChange={(e) => setQuestionsText(e.target.value)}
-                placeholder={`1. Write a C program to find the largest of two numbers.
-2. Write a C program to check whether a given number is positive, negative, or zero.
-3. Write a C program to reverse an array in-place.
-4. Write a C program to check if a matrix is symmetric.`}
-                rows={7}
-                style={{
-                  width: '100%',
-                  padding: '12px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border)',
-                  fontSize: '0.85rem',
-                  fontFamily: 'var(--font-mono)',
-                  lineHeight: '1.5',
-                  resize: 'vertical',
-                }}
-              />
-
+              {/* Extracted Questions List Header & Action Toolbar */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                    color: detectedQuestionsCount > 0 ? 'var(--primary)' : 'var(--text-muted)',
-                  }}
-                >
-                  {detectedQuestionsCount > 0
-                    ? `✓ Detected ${detectedQuestionsCount} question(s) — will generate P1 to P${detectedQuestionsCount}`
-                    : 'Paste questions numbered 1., 2. or separated by lines'}
-                </span>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={verifyWithReference}
-                      onChange={(e) => setVerifyWithReference(e.target.checked)}
-                    />
-                    <span>Verify with GCC</span>
-                  </label>
-
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontSize: '0.8rem',
-                      cursor: 'pointer',
-                      color: replaceAll ? '#dc2626' : 'var(--text-secondary)',
-                    }}
-                    title="If unchecked, new questions will be appended to existing problems"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={replaceAll}
-                      onChange={(e) => setReplaceAll(e.target.checked)}
-                    />
-                    <span>Replace existing problems</span>
-                  </label>
-
-                  <span
-                    style={{
-                      fontSize: '0.74rem',
-                      color: 'var(--text-muted)',
-                      backgroundColor: 'var(--bg)',
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    Difficulty: Auto-classified by Model
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                    Questions List ({questionsList.length})
+                  </h4>
+                  {questionsList.length > 0 && (
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        backgroundColor: successfulCount === questionsList.length && questionsList.length > 0 ? '#ecfdf5' : 'var(--bg-subtle)',
+                        color: successfulCount === questionsList.length && questionsList.length > 0 ? '#059669' : 'var(--text-secondary)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      {successfulCount} / {questionsList.length} Generated
+                    </span>
+                  )}
                 </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={handleAddQuestion}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.76rem', padding: '4px 10px' }}
+                  >
+                    <Plus size={13} />
+                    <span>Add Question</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleGenerateAllSequential}
+                    disabled={isGeneratingAll || questionsList.length === 0}
+                    className="btn btn-primary btn-sm"
+                    style={{ fontSize: '0.76rem', padding: '4px 12px' }}
+                  >
+                    {isGeneratingAll ? (
+                      <>
+                        <Loader2 size={13} className="spin" />
+                        <span>Generating All...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play size={13} />
+                        <span>Generate All (Sequential)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Individual Question Cards */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {questionsList.length === 0 ? (
+                  <div
+                    style={{
+                      padding: '24px',
+                      textAlign: 'center',
+                      border: '1px dashed var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.84rem',
+                    }}
+                  >
+                    No questions detected yet. Paste questions above or click "Load Sample" to begin.
+                  </div>
+                ) : (
+                  questionsList.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: `1px solid ${
+                          item.status === 'success'
+                            ? '#a7f3d0'
+                            : item.status === 'generating'
+                            ? 'var(--primary)'
+                            : item.status === 'error'
+                            ? '#fecaca'
+                            : 'var(--border)'
+                        }`,
+                        backgroundColor:
+                          item.status === 'success'
+                            ? '#f0fdf4'
+                            : item.status === 'generating'
+                            ? 'var(--primary-light)'
+                            : item.status === 'error'
+                            ? '#fff5f5'
+                            : 'white',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span
+                            style={{
+                              fontSize: '0.78rem',
+                              fontWeight: 800,
+                              color: 'var(--primary)',
+                              backgroundColor: 'white',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border)',
+                            }}
+                          >
+                            P{item.number}
+                          </span>
+
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                            Question {item.number}
+                          </span>
+
+                          {/* Status Badge */}
+                          {item.status === 'idle' && (
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-subtle)', padding: '2px 6px', borderRadius: '4px' }}>
+                              Ready
+                            </span>
+                          )}
+
+                          {item.status === 'generating' && (
+                            <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Loader2 size={12} className="spin" /> Generating 5 Test Cases & GCC...
+                            </span>
+                          )}
+
+                          {item.status === 'success' && (
+                            <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle2 size={12} /> Verified ✓ (5 Test Cases: 2 Public, 3 Hidden)
+                            </span>
+                          )}
+
+                          {item.status === 'error' && (
+                            <span style={{ fontSize: '0.72rem', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <AlertCircle size={12} /> Failed: {item.error}
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {/* Generate Single Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateSingle(idx)}
+                            disabled={item.status === 'generating' || isGeneratingAll}
+                            className={`btn btn-sm ${item.status === 'success' ? 'btn-secondary' : 'btn-primary'}`}
+                            style={{ fontSize: '0.76rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                          >
+                            {item.status === 'generating' ? (
+                              <>
+                                <Loader2 size={12} className="spin" />
+                                <span>Generating...</span>
+                              </>
+                            ) : item.status === 'success' ? (
+                              <>
+                                <RotateCw size={12} />
+                                <span>Regenerate</span>
+                              </>
+                            ) : item.status === 'error' ? (
+                              <>
+                                <RotateCw size={12} />
+                                <span>Retry</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles size={12} />
+                                <span>Generate Problem</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveQuestion(idx)}
+                            disabled={item.status === 'generating' || isGeneratingAll}
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '4px 6px', border: 'none', color: '#94a3b8' }}
+                            title="Remove Question"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Question Text Input */}
+                      <textarea
+                        value={item.text}
+                        onChange={(e) => handleQuestionTextChange(idx, e.target.value)}
+                        disabled={item.status === 'generating' || isGeneratingAll}
+                        rows={2}
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border)',
+                          fontSize: '0.82rem',
+                          backgroundColor: 'white',
+                          fontFamily: 'inherit',
+                          lineHeight: '1.4',
+                          resize: 'vertical',
+                        }}
+                      />
+
+                      {/* Generated Problem Preview Details */}
+                      {item.status === 'success' && item.problem && (
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            padding: '8px 10px',
+                            backgroundColor: 'white',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid #bbf7d0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <strong style={{ fontSize: '0.82rem', color: 'var(--text-main)' }}>
+                              {item.problem.title}
+                            </strong>
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                padding: '1px 6px',
+                                borderRadius: '9999px',
+                                backgroundColor: item.problem.difficulty === 'Easy' ? '#ecfdf5' : '#fffbeb',
+                                color: item.problem.difficulty === 'Easy' ? '#065f46' : '#92400e',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {item.problem.difficulty}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                            <span>
+                              <strong>{item.problem.public_test_cases?.length || 2}</strong> Public,{' '}
+                              <strong>{item.problem.hidden_test_cases?.length || 3}</strong> Hidden Edge Cases
+                            </span>
+                            <span style={{ color: '#059669', fontWeight: 600 }}>
+                              ✓ Reference C Solution Verified
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -590,7 +963,7 @@ export const GeneratePackModal: React.FC<Props> = ({
                 Standard Curriculum Problem Pack (Week {weekNumber})
               </h4>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Seeds 10 pre-tested, verified LeetCode-style C problems with 100% accurate test cases and working C solutions:
+                Seeds standard curriculum LeetCode-style C problems with 100% accurate test cases and working C solutions:
                 Sum of Two Numbers, Even/Odd, Max of Three, Factorial, Palindrome, Sum of Digits, Prime Number, Fibonacci, Array Sum, and Max Element.
               </p>
             </div>
@@ -654,33 +1027,42 @@ export const GeneratePackModal: React.FC<Props> = ({
         </div>
 
         <div className="modal-footer">
-          <button type="button" onClick={onClose} disabled={loading} className="btn btn-secondary">
-            Cancel
+          <button type="button" onClick={onClose} disabled={loading || isGeneratingAll} className="btn btn-secondary">
+            {successfulCount > 0 ? 'Done / Close' : 'Cancel'}
           </button>
 
           {mode === 'questions' && (
             <button
               type="button"
-              onClick={handleGenerateFromQuestions}
-              disabled={loading || !questionsText.trim()}
+              onClick={handleGenerateAllSequential}
+              disabled={isGeneratingAll || questionsList.length === 0}
               className="btn btn-primary"
             >
-              <Sparkles size={16} />
-              <span>{loading ? 'Generating Problems...' : `Generate ${detectedQuestionsCount || ''} Problems from Questions`}</span>
+              {isGeneratingAll ? (
+                <>
+                  <Loader2 size={16} className="spin" />
+                  <span>Generating Questions...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} />
+                  <span>Generate All Questions ({questionsList.length})</span>
+                </>
+              )}
             </button>
           )}
 
           {mode === 'seed' && (
             <button type="button" onClick={handleSeed} disabled={loading} className="btn btn-primary">
               <BookOpen size={16} />
-              <span>{loading ? 'Seeding Problems...' : 'Seed 10 Problems Now'}</span>
+              <span>{loading ? 'Seeding Problems...' : 'Seed Problems Now'}</span>
             </button>
           )}
 
           {mode === 'ai' && (
             <button type="button" onClick={handleGenerateAI} disabled={loading} className="btn btn-primary">
               <Sparkles size={16} />
-              <span>{loading ? 'Synthesizing Problems...' : 'Generate 10 Problems'}</span>
+              <span>{loading ? 'Synthesizing Problems...' : 'Generate Problems'}</span>
             </button>
           )}
         </div>

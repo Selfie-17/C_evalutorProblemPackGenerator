@@ -832,7 +832,7 @@ export function ProblemEngineView() {
                 Laboratory Problems ({pack.problems.length})
               </h3>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Click any problem to open the interactive LeetCode Code Workspace
+                Click any problem to open the interactive Code Workspace
               </span>
             </div>
 
@@ -970,7 +970,7 @@ export function ProblemEngineView() {
                         }}
                       >
                         <Code2 size={15} />
-                        <span>LeetCode Workspace</span>
+                        <span>View Code</span>
                       </button>
                     </div>
                   </div>
