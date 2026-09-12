@@ -212,10 +212,16 @@ body {
 }
 
 .content-body {
-  padding: 32px;
-  max-width: 1400px;
+  padding: 24px 28px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
+}
+
+@media (max-width: 1280px) {
+  .content-body {
+    padding: 16px 20px;
+  }
 }
 
 /* Card Component */
@@ -224,9 +230,16 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  padding: 24px;
-  margin-bottom: 24px;
+  padding: 20px 22px;
+  margin-bottom: 20px;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
+}
+
+@media (max-width: 1280px) {
+  .card {
+    padding: 16px;
+  }
 }
 
 .card:hover {
@@ -415,28 +428,30 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background-color: var(--bg-surface);
+  width: 100%;
+  max-width: 100%;
 }
 
 .custom-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
 }
 
 .custom-table th {
   background-color: var(--bg-subtle);
-  padding: 12px 18px;
+  padding: 10px 12px;
   font-weight: 600;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
 }
 
 .custom-table td {
-  padding: 14px 18px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   color: var(--text-main);
   vertical-align: middle;
@@ -452,6 +467,13 @@ body {
 
 .custom-table tbody tr:hover {
   background-color: #f8fafc;
+}
+
+@media (max-width: 1180px) {
+  .custom-table th,
+  .custom-table td {
+    padding: 8px 8px;
+  }
 }
 
 /* Code Viewer & Compilation Error Highlight */

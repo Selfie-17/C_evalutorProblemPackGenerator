@@ -817,45 +817,51 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
               </button>
             </div>
           ) : (
-            <div className="table-container">
-              <table className="custom-table">
+            <div className="table-container" style={{ width: '100%', overflowX: 'auto' }}>
+              <table className="custom-table" style={{ width: '100%', tableLayout: 'auto' }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '60px' }}>#</th>
-                    <th>Problem Title</th>
-                    <th style={{ width: '100px' }}>Difficulty</th>
-                    <th style={{ width: '180px' }}>Topics</th>
-                    <th style={{ width: '140px' }}>Test Cases</th>
-                    <th style={{ width: '150px' }}>Reference</th>
-                    <th style={{ width: '290px', textAlign: 'right' }}>Actions</th>
+                    <th style={{ width: '44px', textAlign: 'center', padding: '9px 6px' }}>#</th>
+                    <th style={{ minWidth: '150px', padding: '9px 10px' }}>Problem Title</th>
+                    <th style={{ width: '75px', textAlign: 'center', padding: '9px 6px' }}>Difficulty</th>
+                    <th style={{ width: '115px', padding: '9px 8px' }}>Topics</th>
+                    <th style={{ width: '105px', padding: '9px 8px' }}>Test Cases</th>
+                    <th style={{ width: '95px', padding: '9px 8px' }}>Reference</th>
+                    <th style={{ width: '235px', textAlign: 'right', padding: '9px 10px' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {problems.map((p) => (
                     <tr key={p.id}>
-                      <td style={{ fontWeight: 800, color: 'var(--primary)' }}>P{p.number}</td>
+                      <td style={{ fontWeight: 800, color: 'var(--primary)', textAlign: 'center', padding: '9px 6px', fontSize: '0.82rem' }}>
+                        P{p.number}
+                      </td>
                       <td
-                        style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--text)' }}
+                        style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--text)', padding: '9px 10px' }}
                         onClick={() => setActiveLeetCodeProblem(problemInPackToProblemModel(p))}
                         title="Click to open Code Workspace"
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>{p.title}</span>
-                            <span style={{ fontSize: '0.72rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                              <Code2 size={12} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                            <span style={{ wordBreak: 'break-word', lineHeight: 1.35, fontSize: '0.84rem' }}>
+                              {p.title}
+                            </span>
+                            <span style={{ fontSize: '0.68rem', color: '#10b981', display: 'inline-flex', alignItems: 'center' }}>
+                              <Code2 size={11} />
                             </span>
                           </div>
                           {!p.is_verified && p.description && p.description.trim() !== p.title.trim() && (
                             <span
                               style={{
-                                fontSize: '0.74rem',
+                                fontSize: '0.72rem',
                                 color: 'var(--text-muted)',
                                 fontWeight: 400,
-                                maxWidth: '380px',
+                                wordBreak: 'break-word',
+                                lineHeight: 1.3,
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
                                 overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
                               }}
                               title={p.description}
                             >
@@ -864,32 +870,35 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                           )}
                         </div>
                       </td>
-                      <td>
+                      <td style={{ textAlign: 'center', padding: '9px 6px' }}>
                         <span
                           style={{
-                            fontSize: '0.75rem',
+                            fontSize: '0.72rem',
                             fontWeight: 600,
-                            padding: '2px 8px',
+                            padding: '2px 7px',
                             borderRadius: '9999px',
                             backgroundColor: p.difficulty === 'Easy' ? '#ecfdf5' : '#fffbeb',
                             color: p.difficulty === 'Easy' ? '#065f46' : '#92400e',
                             border: '1px solid currentColor',
+                            display: 'inline-block',
                           }}
                         >
                           {p.difficulty}
                         </span>
                       </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      <td style={{ padding: '9px 8px' }}>
+                        <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
                           {p.topics.map((t, idx) => (
                             <span
                               key={idx}
                               style={{
                                 backgroundColor: 'var(--bg-subtle)',
                                 color: 'var(--text-secondary)',
-                                fontSize: '0.72rem',
-                                padding: '1px 6px',
+                                fontSize: '0.68rem',
+                                padding: '1px 5px',
                                 borderRadius: '4px',
+                                lineHeight: 1.2,
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               {t}
@@ -897,45 +906,47 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                           ))}
                         </div>
                       </td>
-                      <td>
+                      <td style={{ padding: '9px 8px', whiteSpace: 'nowrap' }}>
                         {p.is_verified ? (
-                          <span>
+                          <div style={{ fontSize: '0.78rem', lineHeight: 1.3 }}>
                             <strong style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                              {p.public_test_cases.length + p.hidden_test_cases.length}
-                            </strong>{' '}
-                            cases ({p.public_test_cases.length} pub, {p.hidden_test_cases.length} hid)
-                          </span>
+                              {p.public_test_cases.length + p.hidden_test_cases.length} cases
+                            </strong>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                              {p.public_test_cases.length} pub, {p.hidden_test_cases.length} hid
+                            </div>
+                          </div>
                         ) : (
-                          <span style={{ color: '#d97706', fontSize: '0.78rem', fontWeight: 600 }}>
-                            ⚡ Not Generated
+                          <span style={{ color: '#d97706', fontSize: '0.72rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            ⚡ Pending
                           </span>
                         )}
                       </td>
-                      <td>
+                      <td style={{ padding: '9px 8px', whiteSpace: 'nowrap' }}>
                         {p.is_verified ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#059669', fontSize: '0.8rem', fontWeight: 600 }}>
-                            <CheckCircle2 size={14} /> Verified ✓
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#059669', fontSize: '0.76rem', fontWeight: 600 }}>
+                            <CheckCircle2 size={13} /> Verified ✓
                           </span>
                         ) : (
                           <span
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px',
+                              gap: '3px',
                               color: '#b45309',
                               backgroundColor: '#fef3c7',
-                              fontSize: '0.76rem',
+                              fontSize: '0.7rem',
                               fontWeight: 700,
-                              padding: '2px 8px',
+                              padding: '2px 6px',
                               borderRadius: '9999px',
                             }}
                           >
-                            <AlertTriangle size={12} /> Ready to Generate
+                            <AlertTriangle size={10} /> Pending
                           </span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px' }}>
+                      <td style={{ textAlign: 'right', padding: '9px 10px', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px' }}>
                           {/* GENERATE / REGENERATE BUTTON SIDE OF EACH QUESTION */}
                           <button
                             onClick={async () => {
@@ -965,7 +976,7 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                                   );
                                   setRowActionFeedback({
                                     number: p.number,
-                                    message: `P${p.number} successfully generated with 5 test cases & verified with GCC!`,
+                                    message: `P${p.number} (${updated.title}) successfully generated with 5 test cases & verified with GCC!`,
                                     type: 'success',
                                   });
                                 } else {
@@ -993,32 +1004,34 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                                 : undefined,
                               borderColor: !p.is_verified ? 'transparent' : undefined,
                               color: !p.is_verified ? '#ffffff' : 'var(--text-main)',
-                              fontWeight: 700,
-                              display: 'flex',
+                              fontWeight: 600,
+                              fontSize: '0.74rem',
+                              display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px',
-                              padding: '4px 10px',
+                              gap: '3px',
+                              padding: '4px 8px',
+                              boxShadow: !p.is_verified ? '0 1px 2px rgba(79, 70, 229, 0.25)' : undefined,
                             }}
                             title={
                               p.is_verified
-                                ? `Regenerate P${p.number} with 5 test cases & GCC`
-                                : `Generate 5 diverse test cases & verified C code for P${p.number}`
+                                ? `Regenerate P${p.number} with 5 test cases & GCC verification`
+                                : `Generate 5 diverse test cases & verified C reference code for P${p.number}`
                             }
                           >
                             {generatingProblemId === p.number ? (
                               <>
-                                <Loader2 size={13} className="spin" />
-                                <span>Generating...</span>
+                                <Loader2 size={11} className="spin" />
+                                <span>Gen...</span>
                               </>
                             ) : !p.is_verified ? (
                               <>
-                                <Sparkles size={13} />
+                                <Sparkles size={11} />
                                 <span>Generate</span>
                               </>
                             ) : (
                               <>
-                                <RotateCw size={12} />
-                                <span>Regenerate</span>
+                                <RotateCw size={11} />
+                                <span>Regen</span>
                               </>
                             )}
                           </button>
@@ -1030,28 +1043,36 @@ export const WeekDetailView: React.FC<Props> = ({ weekId, onBack, onDeleteWeek }
                               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                               border: 'none',
                               color: '#ffffff',
-                              fontWeight: 700,
-                              display: 'flex',
+                              fontWeight: 600,
+                              fontSize: '0.74rem',
+                              display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px',
-                              padding: '4px 10px',
+                              gap: '3px',
+                              padding: '4px 8px',
                             }}
                             title="Open interactive Code Workspace to test with GCC"
                           >
-                            <Code2 size={13} />
+                            <Code2 size={11} />
                             <span>View Code</span>
                           </button>
-                          <button onClick={() => setSelectedProblem(p)} className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }}>
-                            <Eye size={13} />
+
+                          <button
+                            onClick={() => setSelectedProblem(p)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '4px 7px', fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                            title="View Problem Details"
+                          >
+                            <Eye size={11} />
                             <span>View</span>
                           </button>
+
                           <button
                             onClick={() => handleDeleteSingleProblem(p.number)}
                             className="btn btn-secondary btn-sm"
-                            style={{ padding: '4px 8px', color: '#e11d48', borderColor: '#fecdd3' }}
+                            style={{ padding: '4px 6px', color: '#e11d48', borderColor: '#fecdd3', display: 'inline-flex', alignItems: 'center' }}
                             title={`Delete Problem P${p.number}`}
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={11} />
                           </button>
                         </div>
                       </td>
